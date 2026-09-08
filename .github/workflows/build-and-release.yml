@@ -33,7 +33,7 @@ jobs:
 
       - name: Run Swift Unit Tests
         run: |
-          swift test --parallel
+          swift test -v
 
       - name: Feather / AltStore Source Validation
         run: |
