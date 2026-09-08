@@ -189,7 +189,7 @@ extension ModelInfo {
         name: "Gemma-4-E2B-it",
         modelId: "litert-community/gemma-4-E2B-it-litert-lm",
         modelFile: "gemma-4-E2B-it.litertlm",
-        sizeInBytes: 2_588_147_712, // ~2.59 GB
+        sizeInBytes: 2_583_085_056, // ~2.58 GB
         minDeviceMemoryInGb: 8,
         commitHash: "6e5c4f1e395deb959c494953478fa5cec4b8008f",
         accelerators: ModelAccelerators(llm: .gpu, audio: .cpu, vision: .gpu),
@@ -231,7 +231,7 @@ extension ModelInfo {
         name: "Gemma-3n-E2B-it",
         modelId: "google/gemma-3n-E2B-it-litert-lm",
         modelFile: "gemma-3n-E2B-it-int4.litertlm",
-        sizeInBytes: 3_388_604_416, // ~3.39 GB
+        sizeInBytes: 3_655_827_456, // ~3.66 GB
         minDeviceMemoryInGb: 6,
         commitHash: "73b019b63436d346f68dd9c1dbfd117eb264d888",
         accelerators: ModelAccelerators(llm: .gpu, audio: .cpu, vision: .gpu),
@@ -252,7 +252,7 @@ extension ModelInfo {
         name: "Gemma-3n-E4B-it",
         modelId: "google/gemma-3n-E4B-it-litert-lm",
         modelFile: "gemma-3n-E4B-it-int4.litertlm",
-        sizeInBytes: 4_652_318_720, // ~4.65 GB
+        sizeInBytes: 4_919_541_760, // ~4.92 GB
         minDeviceMemoryInGb: 8,
         commitHash: "3d0179a0648381585ab337e170b7517aae8e0ce4",
         accelerators: ModelAccelerators(llm: .gpu, audio: .cpu, vision: .gpu),

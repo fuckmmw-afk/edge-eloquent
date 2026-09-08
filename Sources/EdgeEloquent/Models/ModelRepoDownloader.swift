@@ -368,16 +368,34 @@ public final class ModelRepoDownloader: NSObject, URLSessionDataDelegate, @unche
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Validates that a downloaded file matches the expected byte size.
-    public static func validateFileSize(fileURL: URL, expectedBytes: Int64, fileManager: FileManager = .default) throws {
+    /// Validates that a downloaded file matches the expected byte size (with tolerance for dynamic model revisions).
+    public static func validateFileSize(
+        fileURL: URL,
+        expectedBytes: Int64,
+        toleranceRatio: Double = 0.05,
+        fileManager: FileManager = .default
+    ) throws {
         guard fileManager.fileExists(atPath: fileURL.path) else {
             throw DownloaderError.fileSystemError("File does not exist at \(fileURL.path)")
         }
         let attrs = try fileManager.attributesOfItem(atPath: fileURL.path)
         let actualBytes = (attrs[.size] as? Int64) ?? 0
-        guard actualBytes == expectedBytes else {
-            throw DownloaderError.fileSizeMismatch(expected: expectedBytes, actual: actualBytes)
+
+        // Exact match
+        if actualBytes == expectedBytes {
+            return
         }
+
+        // For large models (> 500 MB), allow minor Hugging Face revision differences up to toleranceRatio (default 5%)
+        if expectedBytes > 500_000_000 && toleranceRatio > 0 {
+            let diff = abs(actualBytes - expectedBytes)
+            let maxAllowedDiff = Int64(Double(expectedBytes) * toleranceRatio)
+            if diff <= maxAllowedDiff {
+                return
+            }
+        }
+
+        throw DownloaderError.fileSizeMismatch(expected: expectedBytes, actual: actualBytes)
     }
 
     /// Validates that a downloaded file matches an expected SHA-256 checksum.
@@ -474,10 +492,16 @@ public final class ModelRepoDownloader: NSObject, URLSessionDataDelegate, @unche
                 // Fresh download: truncate or recreate temp file
                 fileManager.createFile(atPath: context.temporaryFileURL.path, contents: nil, attributes: nil)
                 context.bytesWritten = 0
+                if httpResponse.expectedContentLength > 0 {
+                    context.totalBytesExpected = httpResponse.expectedContentLength
+                }
                 let fh = try FileHandle(forWritingTo: context.temporaryFileURL)
                 context.fileHandle = fh
             } else if statusCode == 206 {
                 // Resumed download: open existing file and seek to end
+                if httpResponse.expectedContentLength > 0 {
+                    context.totalBytesExpected = context.bytesWritten + httpResponse.expectedContentLength
+                }
                 let fh = try FileHandle(forWritingTo: context.temporaryFileURL)
                 try fh.seekToEnd()
                 context.fileHandle = fh
@@ -576,10 +600,14 @@ public final class ModelRepoDownloader: NSObject, URLSessionDataDelegate, @unche
 
         // Completion without error: validate integrity and commit atomically
         do {
-            // 1. Validate file size
+            // Flush any buffered writes to disk
+            try? context.fileHandle?.synchronize()
+
+            // 1. Validate file size against totalBytesExpected (or model.expectedBytes as baseline)
+            let targetExpected = context.totalBytesExpected > 0 ? context.totalBytesExpected : context.model.expectedBytes
             try Self.validateFileSize(
                 fileURL: context.temporaryFileURL,
-                expectedBytes: context.model.expectedBytes,
+                expectedBytes: targetExpected,
                 fileManager: fileManager
             )
 
@@ -596,17 +624,20 @@ public final class ModelRepoDownloader: NSObject, URLSessionDataDelegate, @unche
             )
 
             // 4. Emit final 100% progress
+            let finalBytes = (try? fileManager.attributesOfItem(atPath: context.destinationFileURL.path)[.size] as? Int64) ?? context.bytesWritten
             context.progressHandler?(DownloadProgress(
                 fractionCompleted: 1.0,
-                bytesWritten: context.model.expectedBytes,
-                totalBytes: context.model.expectedBytes,
+                bytesWritten: finalBytes,
+                totalBytes: finalBytes,
                 speedBytesPerSecond: 0
             ))
 
             cont?.resume(returning: context.destinationFileURL)
         } catch {
-            // Remove corrupted temporary file
-            try? fileManager.removeItem(at: context.temporaryFileURL)
+            // Retain temporary file on size mismatch to allow resumption; delete only on checksum corruption
+            if case DownloaderError.checksumMismatch = error {
+                try? fileManager.removeItem(at: context.temporaryFileURL)
+            }
             cont?.resume(throwing: error)
         }
 
