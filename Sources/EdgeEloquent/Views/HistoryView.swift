@@ -17,7 +17,11 @@ public struct HistoryView: View {
     @State private var searchText: String = ""
     @State private var showingClearConfirmation: Bool = false
 
-    public init(historyStore: TranscriptionHistoryStore = .shared) {
+    public init() {
+        self.historyStore = .shared
+    }
+
+    public init(historyStore: TranscriptionHistoryStore) {
         self.historyStore = historyStore
     }
 
@@ -58,9 +62,12 @@ public struct HistoryView: View {
             }
             .background(Theme.surfaceBackground)
             .navigationTitle("History")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 if !historyStore.records.isEmpty {
+                    #if os(iOS)
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(role: .destructive) {
                             showingClearConfirmation = true
@@ -70,6 +77,17 @@ public struct HistoryView: View {
                                 .foregroundColor(.red)
                         }
                     }
+                    #else
+                    ToolbarItem(placement: .automatic) {
+                        Button(role: .destructive) {
+                            showingClearConfirmation = true
+                        } label: {
+                            Image(systemName: "trash")
+                                .font(.subheadline)
+                                .foregroundColor(.red)
+                        }
+                    }
+                    #endif
                 }
             }
             .confirmationDialog(

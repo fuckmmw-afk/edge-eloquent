@@ -66,9 +66,6 @@ public struct TranscriptionDetailView: View {
         .toolbar {
             #if os(iOS)
             ToolbarItem(placement: .topBarTrailing) {
-            #else
-            ToolbarItem(placement: .automatic) {
-            #endif
                 Button {
                     copyText(record.displayText)
                 } label: {
@@ -76,6 +73,16 @@ public struct TranscriptionDetailView: View {
                         .foregroundColor(copied ? Theme.successGreen : Theme.edgeBlue)
                 }
             }
+            #else
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    copyText(record.displayText)
+                } label: {
+                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                        .foregroundColor(copied ? Theme.successGreen : Theme.edgeBlue)
+                }
+            }
+            #endif
         }
     }
 

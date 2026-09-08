@@ -20,9 +20,14 @@ public struct ModelManagerView: View {
     @State private var alertMessage: String? = nil
     @State private var showAlert: Bool = false
 
+    public init(modelManager: ModelManager) {
+        self.modelManager = modelManager
+        self.appConfig = .shared
+    }
+
     public init(
         modelManager: ModelManager,
-        appConfig: AppConfig = .shared
+        appConfig: AppConfig
     ) {
         self.modelManager = modelManager
         self.appConfig = appConfig
@@ -281,7 +286,9 @@ public struct ModelManagerView: View {
                 }
             }
             .navigationTitle("Hugging Face Access")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {

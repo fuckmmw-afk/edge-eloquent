@@ -125,6 +125,11 @@ public final class ModelManager: ObservableObject {
     }
 
     /// Formatted available storage space on device.
+    /// Alias for storage overview card
+    public var availableStorageFormatted: String {
+        availableDiskSpaceFormatted
+    }
+
     public var availableDiskSpaceFormatted: String {
         ByteCountFormatter.string(fromByteCount: availableDiskSpaceBytes, countStyle: .file)
     }

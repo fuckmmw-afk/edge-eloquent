@@ -369,7 +369,7 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         }
         
         // Prepare audio content: in-memory or temporary file
-        let audioContent: Content
+        let audioContent: Message.Content
         let tempAudioFileURL: URL?
         
         if useAudioFilePassing {

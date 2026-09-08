@@ -23,7 +23,11 @@ public struct SettingsView: View {
         case failure(String)
     }
 
-    public init(appConfig: AppConfig = .shared) {
+    public init() {
+        self.appConfig = .shared
+    }
+
+    public init(appConfig: AppConfig) {
         self.appConfig = appConfig
     }
 
@@ -146,7 +150,9 @@ public struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .confirmationDialog(
                 "Reset Settings?",
                 isPresented: $showingResetConfirmation,

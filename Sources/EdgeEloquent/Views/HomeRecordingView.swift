@@ -25,8 +25,17 @@ public struct HomeRecordingView: View {
 
     public init(
         coordinator: DictationCoordinator,
+        modelManager: ModelManager
+    ) {
+        self.coordinator = coordinator
+        self.modelManager = modelManager
+        self.appConfig = .shared
+    }
+
+    public init(
+        coordinator: DictationCoordinator,
         modelManager: ModelManager,
-        appConfig: AppConfig = .shared
+        appConfig: AppConfig
     ) {
         self.coordinator = coordinator
         self.modelManager = modelManager
