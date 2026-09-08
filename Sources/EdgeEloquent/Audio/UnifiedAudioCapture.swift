@@ -342,25 +342,26 @@ public final class UnifiedAudioCapture: @unchecked Sendable {
         let engine = AVAudioEngine()
         let inputNode = engine.inputNode
 
-        let hardwareFormat = inputNode.inputFormat(forBus: 0)
-        guard hardwareFormat.sampleRate > 0 && hardwareFormat.channelCount > 0 else {
-            throw AudioCaptureError.invalidInputFormat
+        // Use outputFormat(forBus: 0) which is the format of the audio flowing out of the input node
+        let busFormat = inputNode.outputFormat(forBus: 0)
+        let formatToUse: AVAudioFormat
+        if busFormat.sampleRate > 0 && busFormat.channelCount > 0 {
+            formatToUse = busFormat
+        } else {
+            formatToUse = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1) ?? inputNode.inputFormat(forBus: 0)
         }
 
-        guard let target = targetFormat else {
-            throw AudioCaptureError.invalidInputFormat
-        }
-
-        guard let converter = AVAudioConverter(from: hardwareFormat, to: target) else {
-            throw AudioCaptureError.converterCreationFailed
+        if let target = targetFormat, formatToUse.sampleRate > 0 && formatToUse.channelCount > 0 {
+            self.audioConverter = AVAudioConverter(from: formatToUse, to: target)
         }
 
         self.audioEngine = engine
-        self.audioConverter = converter
 
         let bufferSize: AVAudioFrameCount = 4096
 
-        inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: hardwareFormat) { [weak self] (buffer, time) in
+        // Install tap using bus format (or nil if format query is pending engine start)
+        let tapFormat = formatToUse.sampleRate > 0 && formatToUse.channelCount > 0 ? formatToUse : nil
+        inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: tapFormat) { [weak self] (buffer, time) in
             guard let self = self else { return }
             self.processInputBuffer(buffer)
         }
@@ -386,7 +387,15 @@ public final class UnifiedAudioCapture: @unchecked Sendable {
             lock.unlock()
             return
         }
-        guard let converter = self.audioConverter, let target = self.targetFormat else {
+        guard let target = self.targetFormat else {
+            lock.unlock()
+            return
+        }
+        // Dynamically instantiate or adapt converter to incoming buffer format
+        if self.audioConverter == nil || self.audioConverter?.inputFormat != inputBuffer.format {
+            self.audioConverter = AVAudioConverter(from: inputBuffer.format, to: target)
+        }
+        guard let converter = self.audioConverter else {
             lock.unlock()
             return
         }

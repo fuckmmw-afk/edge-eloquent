@@ -176,21 +176,22 @@ public final class AudioSessionCoordinator: @unchecked Sendable {
 
         var options: AVAudioSession.CategoryOptions = [
             .duckOthers,
-            .allowBluetooth,
-            .defaultToSpeaker
+            .defaultToSpeaker,
+            .allowBluetooth
         ]
-        #if !os(tvOS)
-        options.insert(.allowBluetoothA2DP)
-        #endif
 
-        try session.setCategory(
-            .playAndRecord,
-            mode: .spokenAudio,
-            options: options
-        )
+        do {
+            try session.setCategory(
+                .playAndRecord,
+                mode: .default,
+                options: options
+            )
+        } catch {
+            try session.setCategory(.playAndRecord, mode: .default)
+        }
 
-        try session.setPreferredSampleRate(preferredSampleRate)
-        try session.setPreferredIOBufferDuration(preferredIOBufferDuration)
+        try? session.setPreferredSampleRate(preferredSampleRate)
+        try? session.setPreferredIOBufferDuration(preferredIOBufferDuration)
 
         startObservingNotifications()
         transitionState(to: .ready)

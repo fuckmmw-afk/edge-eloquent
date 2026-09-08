@@ -277,15 +277,11 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
             throw SpeechModelEngineError.modelFileNotFound(path: path)
         }
         
-        // Ensure device memory requirement
+        // Memory diagnostic check
         let physicalRam = ProcessInfo.processInfo.physicalMemory
-        let physicalRamGb = Int(physicalRam / (1024 * 1024 * 1024))
+        let physicalRamGb = Int(ceil(Double(physicalRam) / (1024.0 * 1024.0 * 1024.0)))
         if physicalRamGb < modelInfo.minDeviceMemoryInGb {
-            logger.error("Insufficient RAM: Required \(self.modelInfo.minDeviceMemoryInGb) GB, available \(physicalRamGb) GB")
-            throw SpeechModelEngineError.insufficientDeviceMemory(
-                requiredGb: modelInfo.minDeviceMemoryInGb,
-                availableGb: physicalRamGb
-            )
+            logger.warning("Device RAM (\(physicalRamGb) GB) is below recommended \(self.modelInfo.minDeviceMemoryInGb) GB. Proceeding with initialization.")
         }
         
         // Configure compilation cache

@@ -52,6 +52,37 @@ public struct HomeRecordingView: View {
                     // Top Header: Active Model Pill & Status
                     headerBar
 
+                    // Error Banner (if error occurred during capture or transcription)
+                    if let errorMessage = coordinator.lastErrorMessage {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.red)
+                                .font(.subheadline)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Recording Error")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.red)
+                                Text(errorMessage)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Button {
+                                coordinator.lastErrorMessage = nil
+                                coordinator.state = .idle
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.secondary.opacity(0.6))
+                            }
+                        }
+                        .padding(10)
+                        .background(Color.red.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.red.opacity(0.2), lineWidth: 1))
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+
                     // Live Transcript Area
                     RealtimeTranscriptView(
                         finalizedText: coordinator.finalizedTranscript,

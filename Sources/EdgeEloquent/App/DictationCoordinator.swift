@@ -157,9 +157,13 @@ public final class DictationCoordinator: ObservableObject {
                 }
 
                 let engine = LiteRTGemmaEngine(modelInfo: info, modelPath: fileURL.path)
-                try await engine.load()
-                self.activeEngine = engine
-                return engine
+                do {
+                    try await engine.load()
+                    self.activeEngine = engine
+                    return engine
+                } catch {
+                    print("[DictationCoordinator] LiteRT load failed (\(error.localizedDescription)), falling back to Apple Speech.")
+                }
             }
         }
 
@@ -173,7 +177,11 @@ public final class DictationCoordinator: ObservableObject {
         }
 
         let fallback = AppleOnDeviceSpeechEngine()
-        try await fallback.load()
+        do {
+            try await fallback.load()
+        } catch {
+            print("[DictationCoordinator] Apple Speech Engine load warning: \(error.localizedDescription)")
+        }
         self.activeEngine = fallback
         return fallback
     }
