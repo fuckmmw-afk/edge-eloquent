@@ -9,6 +9,7 @@
 import SwiftUI
 
 /// App attribution and license acknowledgments view.
+@MainActor
 public struct AboutAttributionView: View {
 
     public init() {}
@@ -35,7 +36,9 @@ public struct AboutAttributionView: View {
         }
         .background(Theme.surfaceBackground)
         .navigationTitle("About & Attributions")
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        #endif
     }
 
     // MARK: - Subviews

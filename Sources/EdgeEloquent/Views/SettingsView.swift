@@ -9,6 +9,7 @@
 import SwiftUI
 
 /// App settings and configuration interface.
+@MainActor
 public struct SettingsView: View {
 
     @ObservedObject public var appConfig: AppConfig
@@ -38,9 +39,11 @@ public struct SettingsView: View {
 
                         TextField("https://...", text: $appConfig.cloudflareWorkerURL)
                             .textContentType(.URL)
+                            #if os(iOS)
                             .keyboardType(.URL)
-                            .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
+                            #endif
+                            .autocorrectionDisabled()
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
@@ -50,8 +53,10 @@ public struct SettingsView: View {
 
                         SecureField("Bearer token...", text: $appConfig.cloudflareAPIToken)
                             .textContentType(.password)
-                            .autocorrectionDisabled()
+                            #if os(iOS)
                             .textInputAutocapitalization(.never)
+                            #endif
+                            .autocorrectionDisabled()
                     }
 
                     // Test connection button

@@ -9,6 +9,7 @@
 import SwiftUI
 
 /// Past dictation history list view stored strictly on-device in local sandbox storage.
+@MainActor
 public struct HistoryView: View {
 
     @ObservedObject public var historyStore: TranscriptionHistoryStore

@@ -12,6 +12,7 @@ import UIKit
 #endif
 
 /// Detailed inspection view for a saved transcription record.
+@MainActor
 public struct TranscriptionDetailView: View {
 
     public let record: TranscriptionRecord
@@ -59,9 +60,15 @@ public struct TranscriptionDetailView: View {
         }
         .background(Theme.surfaceBackground)
         .navigationTitle("Dictation Detail")
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        #endif
         .toolbar {
+            #if os(iOS)
             ToolbarItem(placement: .topBarTrailing) {
+            #else
+            ToolbarItem(placement: .automatic) {
+            #endif
                 Button {
                     copyText(record.displayText)
                 } label: {

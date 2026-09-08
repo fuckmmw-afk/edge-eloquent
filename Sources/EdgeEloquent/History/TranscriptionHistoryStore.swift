@@ -48,8 +48,16 @@ public final class TranscriptionHistoryStore: ObservableObject {
         defaultDirectoryURL.appendingPathComponent(databaseFilename)
     }
 
+    /// Shared singleton instance for SwiftUI default environment.
+    public static let shared = TranscriptionHistoryStore()
+
     /// In-memory records list, ordered newest first.
     @Published public private(set) var records: [TranscriptionRecord] = []
+
+    /// Clears all records from history.
+    public func clearAll() {
+        clearAllHistory()
+    }
 
     // MARK: - Dependencies
 

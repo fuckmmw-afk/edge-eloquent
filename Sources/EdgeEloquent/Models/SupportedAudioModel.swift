@@ -195,6 +195,11 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
         modelDescription: "State-of-the-art 4B parameter multimodal model for flagship devices with 8GB+ unified memory."
     )
 
+    /// All officially verified audio-capable models.
+    public static var allModels: [SupportedAudioModel] {
+        allPredefined
+    }
+
     /// Pre-configured list of all officially verified audio-capable models.
     public static let allPredefined: [SupportedAudioModel] = [
         gemma4_E2B_it,

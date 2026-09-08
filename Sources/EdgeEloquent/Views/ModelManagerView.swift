@@ -10,6 +10,7 @@ import SwiftUI
 
 /// Primary Model Manager interface allowing users to browse, download, switch, and delete
 /// on-device audio models matching the Google AI Edge Gallery allowlists.
+@MainActor
 public struct ModelManagerView: View {
 
     @ObservedObject public var modelManager: ModelManager
@@ -264,7 +265,9 @@ public struct ModelManagerView: View {
                     SecureField("hf_...", text: $appConfig.huggingFaceToken)
                         .textContentType(.password)
                         .autocorrectionDisabled()
+                        #if os(iOS)
                         .textInputAutocapitalization(.never)
+                        #endif
                 } header: {
                     Text("Hugging Face User Access Token")
                 } footer: {

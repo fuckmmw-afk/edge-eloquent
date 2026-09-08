@@ -13,6 +13,7 @@ import UIKit
 
 /// Primary dictation screen providing live streaming transcription, waveform visualizer,
 /// and post-stop processing card.
+@MainActor
 public struct HomeRecordingView: View {
 
     @ObservedObject public var coordinator: DictationCoordinator
@@ -73,7 +74,9 @@ public struct HomeRecordingView: View {
                 .padding(.top, 8)
             }
             .navigationTitle("Dictation")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .sheet(isPresented: $showingModelSheet) {
                 ModelManagerView(modelManager: modelManager, appConfig: appConfig)
             }

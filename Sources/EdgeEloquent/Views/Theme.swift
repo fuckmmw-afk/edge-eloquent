@@ -62,7 +62,7 @@ public enum Theme {
 public struct EdgeCardStyle: ViewModifier {
     public var cornerRadius: CGFloat = Theme.cardCornerRadius
 
-    public func body(content: Content) -> some View {
+    public func body(content: SwiftUI.ViewModifier.Content) -> some View {
         content
             .background(Theme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))

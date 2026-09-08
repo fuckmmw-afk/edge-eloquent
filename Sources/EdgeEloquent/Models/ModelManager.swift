@@ -33,13 +33,14 @@ public enum ModelManagerError: LocalizedError, Equatable {
 public enum ModelState: Equatable, Sendable {
     case notDownloaded
     case downloading(progress: Double)
+    case loading
     case ready
     case active
     case error(String)
 
     public var isDownloaded: Bool {
         switch self {
-        case .ready, .active:
+        case .loading, .ready, .active:
             return true
         default:
             return false
@@ -48,6 +49,11 @@ public enum ModelState: Equatable, Sendable {
 
     public var isActive: Bool {
         if case .active = self { return true }
+        return false
+    }
+
+    public var isDownloading: Bool {
+        if case .downloading = self { return true }
         return false
     }
 }
@@ -91,6 +97,42 @@ public final class ModelManager: ObservableObject {
 
     /// Available disk space in bytes on the device storage volume.
     @Published public private(set) var availableDiskSpaceBytes: Int64 = 0
+
+    /// Total storage capacity in bytes on the volume.
+    @Published public private(set) var totalDiskSpaceBytes: Int64 = 64_000_000_000
+
+    /// Total bytes currently occupied by downloaded model weights on disk.
+    public var totalModelsSizeOnDiskBytes: Int64 {
+        supportedModels.reduce(0) { total, model in
+            let path = localModelArtifactURL(for: model).path
+            guard fileManager.fileExists(atPath: path),
+                  let attrs = try? fileManager.attributesOfItem(atPath: path),
+                  let size = attrs[.size] as? Int64 else {
+                return total
+            }
+            return total + size
+        }
+    }
+
+    /// Formatted string of space occupied by models on disk.
+    public var totalModelsSizeFormatted: String {
+        ByteCountFormatter.string(fromByteCount: totalModelsSizeOnDiskBytes, countStyle: .file)
+    }
+
+    /// Formatted total storage space on device.
+    public var totalDiskSpaceFormatted: String {
+        ByteCountFormatter.string(fromByteCount: totalDiskSpaceBytes, countStyle: .file)
+    }
+
+    /// Formatted available storage space on device.
+    public var availableDiskSpaceFormatted: String {
+        ByteCountFormatter.string(fromByteCount: availableDiskSpaceBytes, countStyle: .file)
+    }
+
+    /// List of models currently present on disk.
+    public var downloadedModels: [SupportedAudioModel] {
+        supportedModels.filter { isModelDownloaded(bash) }
+    }
 
     /// Real-time progress trackers for active downloads keyed by model ID.
     @Published public private(set) var downloadProgresses: [String: Progress] = [:]

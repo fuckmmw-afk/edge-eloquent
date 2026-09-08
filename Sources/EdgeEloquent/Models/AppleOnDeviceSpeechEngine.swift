@@ -39,20 +39,20 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
         return _isLoaded
     }
     
-    private func markLoaded(#if canImport(Speech) recognizer: SFSpeechRecognizer #endif) {
+    #if canImport(Speech)
+    private func markLoaded(recognizer: SFSpeechRecognizer) {
         lock.lock()
         defer { lock.unlock() }
-        #if canImport(Speech)
         self.speechRecognizer = recognizer
-        #endif
         self._isLoaded = true
     }
-    
-    private func markLoadedFallback() {
+    #else
+    private func markLoaded() {
         lock.lock()
         defer { lock.unlock() }
         self._isLoaded = true
     }
+    #endif
     
     private func prepareUnload() -> Bool {
         lock.lock()
@@ -131,7 +131,7 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
         logger.info("AppleOnDeviceSpeechEngine loaded successfully.")
         #else
         // Non-Apple platform fallback simulation
-        markLoadedFallback()
+        markLoaded()
         logger.info("AppleOnDeviceSpeechEngine loaded (simulation mode).")
         #endif
     }
