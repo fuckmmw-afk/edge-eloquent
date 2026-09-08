@@ -95,6 +95,17 @@ public final class ModelManager: ObservableObject {
     /// The ID of the currently active model for transcription.
     @Published public private(set) var activeModelId: String? = nil
 
+    /// The currently active model instance, if one is selected and available.
+    public var activeModel: SupportedAudioModel? {
+        guard let id = activeModelId else { return nil }
+        return supportedModels.first(where: { bash.id == id })
+    }
+
+    /// File URL for the given model on local storage.
+    public func modelFileURL(for model: SupportedAudioModel) -> URL {
+        localModelArtifactURL(for: model)
+    }
+
     /// Available disk space in bytes on the device storage volume.
     @Published public private(set) var availableDiskSpaceBytes: Int64 = 0
 

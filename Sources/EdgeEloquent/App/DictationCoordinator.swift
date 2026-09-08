@@ -78,11 +78,20 @@ public final class DictationCoordinator: ObservableObject {
 
     // MARK: - Initialization
 
+    public convenience init() {
+        self.init(
+            audioCapture: UnifiedAudioCapture(),
+            modelManager: ModelManager(),
+            historyStore: .shared,
+            appConfig: .shared
+        )
+    }
+
     public init(
-        audioCapture: UnifiedAudioCapture = UnifiedAudioCapture(),
-        modelManager: ModelManager = ModelManager(),
-        historyStore: TranscriptionHistoryStore = .shared,
-        appConfig: AppConfig = .shared
+        audioCapture: UnifiedAudioCapture,
+        modelManager: ModelManager,
+        historyStore: TranscriptionHistoryStore,
+        appConfig: AppConfig
     ) {
         self.audioCapture = audioCapture
         self.modelManager = modelManager
@@ -91,7 +100,7 @@ public final class DictationCoordinator: ObservableObject {
 
         // Observe waveform changes
         self.audioCapture.waveformStore.onPowerLevelUpdated = { [weak self] _, history in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.liveWaveformLevels = history
             }
         }
@@ -176,11 +185,13 @@ public final class DictationCoordinator: ObservableObject {
         // Start duration timer
         durationTimer?.invalidate()
         durationTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            guard let self = self, let start = self.recordingStartTime else { return }
-            let elapsed = Date().timeIntervalSince(start)
-            self.currentDuration = elapsed
-            if self.state.isRecording {
-                self.state = .recording(duration: elapsed)
+            Task { @MainActor [weak self] in
+                guard let self = self, let start = self.recordingStartTime else { return }
+                let elapsed = Date().timeIntervalSince(start)
+                self.currentDuration = elapsed
+                if self.state.isRecording {
+                    self.state = .recording(duration: elapsed)
+                }
             }
         }
 
@@ -241,7 +252,7 @@ public final class DictationCoordinator: ObservableObject {
             }
             streamProcessingTask = nil
 
-            var rawTranscript = accumulatedTokens.joined().trimmingCharacters(in: .whitespacesAndNewlines)
+            var rawTranscript = accumulatedTokens.joined().trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
             if rawTranscript.isEmpty {
                 // If microphone picked up only silence, provide graceful fallback
                 rawTranscript = "No audible speech detected."

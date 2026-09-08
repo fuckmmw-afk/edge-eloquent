@@ -99,6 +99,11 @@ public final class TranscriptionHistoryStore: ObservableObject {
     /// Appends a new transcription record to history and persists to disk.
     /// New records are prepended so that `records.first` is always the most recent.
     @discardableResult
+    @discardableResult
+    public func saveRecord(_ record: TranscriptionRecord) -> TranscriptionRecord {
+        addRecord(record)
+    }
+
     public func addRecord(_ record: TranscriptionRecord) -> TranscriptionRecord {
         records.insert(record, at: 0)
         persistAllRecordsImmediately()
