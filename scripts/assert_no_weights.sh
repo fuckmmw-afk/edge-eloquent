@@ -17,17 +17,32 @@ if [[ -f "$TARGET" && "$TARGET" == *.ipa ]]; then
         echo "$FOUND_FILES"
         exit 1
     fi
-    # Also check file size: Edge Eloquent IPA must be lightweight (typically 15-35MB, never >100MB)
+    # LiteRT runtime is embedded; model weights are not. 150 MB matches CI IPA gate.
     IPA_SIZE=$(stat -f%z "$TARGET" 2>/dev/null || stat -c%s "$TARGET" 2>/dev/null || echo 0)
-    MAX_ALLOWED_SIZE=$((100 * 1024 * 1024)) # 100 MB
+    MAX_ALLOWED_SIZE=$((150 * 1024 * 1024)) # 150 MB
     if [[ "$IPA_SIZE" -gt "$MAX_ALLOWED_SIZE" ]]; then
-        echo "CRITICAL ERROR: IPA size ($IPA_SIZE bytes) exceeds maximum threshold of 100MB! Large weights likely present."
+        echo "CRITICAL ERROR: IPA size ($IPA_SIZE bytes) exceeds maximum threshold of 150MB! Large weights likely present."
         exit 1
     fi
     echo "SUCCESS: IPA is clean ($IPA_SIZE bytes). No model weights detected."
 elif [[ -d "$TARGET" ]]; then
     echo "Scanning directory: $TARGET"
-    FOUND_FILES=$(find "$TARGET" -type f | grep -E "$FORBIDDEN_EXTENSIONS" || true)
+    # Ignore generated dependency/build trees. Upstream LiteRT-LM test fixtures
+    # land in .build/checkouts after `swift test` and are not repository content.
+    # The IPA path is audited separately with no exclusions.
+    FOUND_FILES=$(find "$TARGET" \
+        \( -type d \( \
+            -name .git -o \
+            -name .build -o \
+            -name build -o \
+            -name DerivedData -o \
+            -name node_modules -o \
+            -name .wrangler -o \
+            -name .swiftpm -o \
+            -name SourcePackages -o \
+            -name Payload \
+        \) -prune \) -o \
+        -type f -print | grep -E "$FORBIDDEN_EXTENSIONS" || true)
     if [[ -n "$FOUND_FILES" ]]; then
         echo "CRITICAL ERROR: Found forbidden model weights in directory:"
         echo "$FOUND_FILES"

@@ -15,6 +15,7 @@ import unittest
 import subprocess
 import os
 import re
+import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -234,6 +235,43 @@ class TestModelSpecifications(unittest.TestCase):
             f"assert_no_weights.sh failed:\n{result.stdout}\n{result.stderr}",
         )
         self.assertIn("SUCCESS: Directory is clean", result.stdout)
+
+    def test_zero_weights_ignores_spm_build_trees(self):
+        script_path = REPO_ROOT / "scripts" / "assert_no_weights.sh"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = (
+                root
+                / ".build"
+                / "checkouts"
+                / "LiteRT-LM"
+                / "runtime"
+                / "testdata"
+            )
+            fixture.mkdir(parents=True)
+            (fixture / "fake.litertlm").write_bytes(b"upstream-test-fixture")
+            (root / "README.md").write_text("ok\n", encoding="utf-8")
+            result = subprocess.run(
+                ["bash", str(script_path), str(root)],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                f"expected .build fixtures to be ignored:\n{result.stdout}\n{result.stderr}",
+            )
+            self.assertIn("SUCCESS: Directory is clean", result.stdout)
+
+            leaked = root / "leaked.tflite"
+            leaked.write_bytes(b"should-fail")
+            leaked_result = subprocess.run(
+                ["bash", str(script_path), str(root)],
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(leaked_result.returncode, 0)
+            self.assertIn("leaked.tflite", leaked_result.stdout)
 
     def test_gitignore_contains_weight_patterns(self):
         gitignore_path = REPO_ROOT / ".gitignore"
