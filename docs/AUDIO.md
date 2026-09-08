@@ -90,7 +90,7 @@ let session = AVAudioSession.sharedInstance()
 
 try session.setCategory(
     .playAndRecord,
-    mode: .spokenAudio,
+    mode: .default,
     options: [
         .duckOthers,
         .allowBluetooth,
@@ -108,11 +108,11 @@ try session.setActive(true, options: .notifyOthersOnDeactivation)
 #### 1. Category: `.playAndRecord`
 Permits simultaneous audio input (microphone) and output (feedback cues, text-to-speech replay). Essential for dictation and voice intelligence applications.
 
-#### 2. Mode: `.spokenAudio`
+#### 2. Mode: `.default`
 Engages Apple's internal DSP speech pipeline:
 - Applies automatic gain control (AGC) and high-pass filtering to attenuate handling noise and low-frequency HVAC rumble (<80 Hz).
 - Optimizes acoustic echo cancellation (AEC) for clear vocal frequency isolation (300 Hz – 3.4 kHz).
-- Distinguishes human speech from ambient background noise.
+- Preserves the microphone signal without speech-playback processing before model inference.
 
 #### 3. Options:
 - **`.duckOthers`**: Dips background audio (e.g., Podcasts, Apple Music) to ~20% volume while Edge Eloquent is recording, rather than pausing or killing the other media.
@@ -538,7 +538,7 @@ Sources/EdgeEloquent/Audio/
    High-performance audio capture service. Manages the `AVAudioEngine` graph, installs taps on bus 0, configures `AVAudioConverter` for standard 16kHz mono resampling, runs thread-safe sample accumulation, enforces 15s windowing and VAD gating, and emits `AudioChunk` structures via an `AsyncStream`.
 
 2. **`AudioSessionCoordinator.swift`:**  
-   Session lifecycle coordinator. Configures `.playAndRecord` and `.spokenAudio`, requests permissions via modern iOS 17 `AVAudioApplication` APIs, monitors `interruptionNotification` and `routeChangeNotification`, and cleanly coordinates audio engine state across route changes.
+   Session lifecycle coordinator. Configures `.playAndRecord` and `.default`, requests permissions via modern iOS 17 `AVAudioApplication` APIs, monitors `interruptionNotification` and `routeChangeNotification`, and cleanly coordinates audio engine state across route changes.
 
 3. **`WAVEncoder.swift`:**  
    Allocation-conscious RIFF WAV encoder. Constructs standard 44-byte headers, executes vectorized or clamped Float32-to-Int16 PCM conversion, and provides header validation utilities.

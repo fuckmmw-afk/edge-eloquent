@@ -150,6 +150,7 @@ public final class UnifiedAudioCapture: @unchecked Sendable {
         self.minSliceDuration = minSliceDuration
         self.silenceThresholdDuration = silenceThresholdDuration
         self.silenceDecibelThreshold = silenceDecibelThreshold
+        self.sessionCoordinator.delegate = self
 
         #if canImport(AVFoundation)
         self.targetFormat = AVAudioFormat(
@@ -240,12 +241,20 @@ public final class UnifiedAudioCapture: @unchecked Sendable {
             throw AudioCaptureError.permissionDenied
         }
 
-        // 2. Configure audio session
-        try sessionCoordinator.configureSession()
-        try sessionCoordinator.activateSession()
+        do {
+            // 2. Configure audio session
+            try sessionCoordinator.configureSession()
+            try sessionCoordinator.activateSession()
 
-        // 3. Setup and start audio engine tap
-        try setupAudioEngine()
+            // 3. Setup and start audio engine tap
+            try setupAudioEngine()
+        } catch {
+            #if canImport(AVFoundation)
+            teardownAudioEngine()
+            #endif
+            try? sessionCoordinator.deactivateSession()
+            throw error
+        }
 
         markRunning()
         sessionCoordinator.markRecording()
@@ -468,7 +477,8 @@ public final class UnifiedAudioCapture: @unchecked Sendable {
         var emitReason = ""
 
         // 1. Mandatory max window slice (e.g. 15.0 seconds = 240,000 samples)
-        if totalCount >= Self.samplesPer15Seconds || currentDuration >= maxSliceDuration {
+        if (totalCount >= Self.samplesPer15Seconds || currentDuration >= maxSliceDuration),
+           hasDetectedSpeechInCurrentSlice {
             shouldEmitSlice = true
             emitReason = "Max window duration reached (15s / 240,000 samples)"
         }
@@ -517,7 +527,10 @@ public final class UnifiedAudioCapture: @unchecked Sendable {
     }
 
     private func emitChunk(_ chunk: AudioChunk) {
-        chunkStreamContinuation?.yield(chunk)
+        lock.lock()
+        let continuation = chunkStreamContinuation
+        lock.unlock()
+        continuation?.yield(chunk)
         delegate?.audioCaptureDidEmitChunk(self, chunk: chunk)
     }
 
@@ -527,5 +540,26 @@ public final class UnifiedAudioCapture: @unchecked Sendable {
         #endif
         chunkStreamContinuation?.finish()
         chunkStreamContinuation = nil
+    }
+}
+
+extension UnifiedAudioCapture: AudioSessionCoordinatorDelegate {
+    public func audioSessionDidChangeState(_ coordinator: AudioSessionCoordinator, state: AudioSessionState) {}
+
+    public func audioSessionDidReceiveInterruption(
+        _ coordinator: AudioSessionCoordinator,
+        interruption: AudioInterruptionType
+    ) {}
+
+    public func audioSessionDidReceiveRouteChange(
+        _ coordinator: AudioSessionCoordinator,
+        reason: AudioRouteChangeReason,
+        currentRoute: String
+    ) {
+        Task { await handleAudioRouteChanged() }
+    }
+
+    public func audioSessionDidFail(_ coordinator: AudioSessionCoordinator, error: Error) {
+        delegate?.audioCaptureDidFail(self, error: error)
     }
 }

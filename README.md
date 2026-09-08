@@ -1,6 +1,6 @@
 # Edge Eloquent
 
-> **Minimalist Realtime Dictation powered by Google AI Edge runtime on iOS.**  
+> **Minimalist dictation powered by Google AI Edge LiteRT-LM on iOS.**
 > Transcribes locally on-device using multi-model support, performs deterministic local filler cleanup, and optionally enhances text via secure text-only Cloudflare processing. **Audio never leaves the device.**
 
 [![iOS 17.0+](https://img.shields.io/badge/iOS-17.0%2B-blue.svg)](https://developer.apple.com/ios/)
@@ -42,10 +42,10 @@ For comprehensive details on repository schema, version tracking, and deep linki
 
 ## 🔒 The Audio Air-Gap Invariant
 
-1. **Local-Only Inference:** Microphone audio is captured via `AVAudioEngine` and fed directly to Google AI Edge's **LiteRT-LM** (`CLiteRTLM.xcframework`) running on Apple Silicon (ANE / GPU / CPU).
+1. **Local-Only Inference:** Microphone audio is captured via `AVAudioEngine` and fed directly to the official Google AI Edge **LiteRT-LM 0.16.1** package running on Apple Silicon.
 2. **Zero Audio Transmission:** Raw PCM buffers, WAV files, and audio spectrograms **never touch the network**.
-3. **Optional Text Enhancement:** Only post-transcription, scrubbed text is optionally forwarded via TLS 1.3 to a dedicated [Cloudflare Worker](cloudflare-worker/) for search-grounded text refinement and punctuation perfection.
-4. **Lightweight Distribution:** The application IPA weighs only **~18.5 MB**. Heavy model weights (Gemma 3n / Gemma 4) are downloaded on-demand with resumable chunked downloads from Hugging Face Hub after installation.
+3. **Optional Text Enhancement:** Cloud enhancement is disabled by default. When explicitly configured, only post-transcription text is forwarded via TLS 1.3. Web search is a separate opt-in because it sends a derived query to the configured search provider.
+4. **No Bundled Weights:** The IPA includes the LiteRT-LM runtime but no model weights. iOS-validated Gemma 3n weights are downloaded on demand from pinned Hugging Face revisions and verified with SHA-256.
 
 ---
 
@@ -59,7 +59,7 @@ edge-eloquent/
 │   └── EdgeEloquent/             # Core application source code
 │       ├── Audio/                # Real-time microphone capture & ring buffers
 │       ├── Cloudflare/           # Text-only Cloudflare post-processing client
-│       ├── History/              # Encrypted local transcription storage
+│       ├── History/              # Local iOS Data Protection storage
 │       ├── Models/               # Engine abstractions & model metadata
 │       └── Transcription/        # Audio transcript coordinators
 ├── Tests/

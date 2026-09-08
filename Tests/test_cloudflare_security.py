@@ -285,7 +285,9 @@ class TestStrictTextOnlyGuard(unittest.TestCase):
             0,
             f"cloudflare-worker npm test failed with code {res.returncode}:\n{res.stdout}\n{res.stderr}",
         )
-        self.assertIn("tests 14", res.stdout.lower() + res.stderr.lower())
+        output = res.stdout.lower() + res.stderr.lower()
+        self.assertRegex(output, r"# tests \d+")
+        self.assertIn("# fail 0", output)
 
 
 if __name__ == "__main__":

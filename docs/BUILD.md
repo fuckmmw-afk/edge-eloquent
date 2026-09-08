@@ -41,7 +41,7 @@
 
 ## 1. Executive Summary & Architectural Invariants
 
-Edge Eloquent is an on-device multimodal speech intelligence and dictation engine designed for iOS 17.0+. It utilizes Google AI Edge's **LiteRT-LM** (`CLiteRTLM.xcframework` v0.16.0) runtime with **Gemma 3n** and **Gemma 4** models.
+Edge Eloquent is an on-device multimodal speech intelligence and dictation engine designed for iOS 17.0+. It uses the official Google AI Edge **LiteRT-LM 0.16.1** Swift package. The selectable catalog is restricted to the publicly validated Gemma 3n E2B/E4B iOS audio models.
 
 When building, packaging, and distributing Edge Eloquent, developers and CI systems must strictly respect two fundamental architectural invariants:
 
@@ -50,7 +50,7 @@ When building, packaging, and distributing Edge Eloquent, developers and CI syst
 |                                    EDGE ELOQUENT CORE INVARIANTS                                        |
 +---------------------------------------------------------------------------------------------------------+
 | 1. ZERO WEIGHTS IN BUNDLE:                                                                              |
-|    The IPA distribution MUST contain only compiled code and UI assets (~18.5 MB). Large model weights  |
+|    The IPA contains compiled code, UI assets, and LiteRT-LM, but never model weights.                  |
 |    (2.5 GB to 4.7 GB) are acquired post-launch via resumable HTTP range downloads from Hugging Face.    |
 |                                                                                                         |
 | 2. STRICT AUDIO AIR-GAP:                                                                                |
@@ -62,7 +62,7 @@ When building, packaging, and distributing Edge Eloquent, developers and CI syst
 ```mermaid
 flowchart LR
     Source["Git Repository\n(Swift Code + Assets)"] --> Build["xcodebuild / SPM\n(macOS Runner)"]
-    Build --> Archive["EdgeEloquent.app\n(~18.5 MB)"]
+    Build --> Archive["EdgeEloquent.app\n(runtime, no weights)"]
     Archive --> Audit{"Zero Weights\nAudit Passed?"}
     Audit -- No --> Fail["FAIL BUILD\n(Forbidden .litertlm detected)"]
     Audit -- Yes --> Package["Package Payload/\nEdgeEloquent.ipa"]
@@ -108,7 +108,7 @@ Edge Eloquent manages its modules and external dependencies using standard Swift
 
 The primary engine dependency is Google AI Edge's LiteRT-LM runtime:
 - **Upstream Repository:** `https://github.com/google-ai-edge/LiteRT-LM`
-- **Binary Target:** `CLiteRTLM.xcframework` (v0.16.0)
+- **Swift Package:** `LiteRTLM` pinned to version `0.16.1`
 - **Checksum:** `4e0f683da07566ee79c143d2d58d387f77052b0e6a41562c969e5d2728fc9f4b`
 
 To resolve and pre-fetch package dependencies locally:
@@ -278,7 +278,7 @@ Allows installing on your own physical iPhone without paying for the Apple Devel
 
 Required for permanent ad-hoc signing, TestFlight, and App Store distribution:
 - **Validity:** 1 year.
-- **Entitlements:** Extended virtual memory addressing, network client, background downloads.
+- **Entitlements:** Standard network client access. Model transfers are resumable across app launches using HTTP Range requests, but are not advertised as indefinite background execution.
 - **Profile Type:** `Apple Development` (for internal testing) or `iOS Distribution` (for App Store / Ad-Hoc).
 
 ### 5.4 Enterprise & Custom Certificates (Feather / SideStore)
@@ -297,7 +297,7 @@ Edge Eloquent requires the following permissions declared in its `Info.plist`:
 <key>NSMicrophoneUsageDescription</key>
 <string>Edge Eloquent requires microphone access to transcribe your spoken voice directly on your device.</string>
 
-<!-- Background Transfers: Required for large model downloads -->
+<!-- Model transfers use HTTPS Range resumption; no background mode is declared. -->
 <key>UIBackgroundModes</key>
 <array>
     <string>fetch</string>
@@ -320,7 +320,7 @@ For devices running 4-bit Gemma models with extended KV-caches, the following me
 
 The complete Edge Eloquent IPA binary footprint is strictly constrained:
 - **Allowed Contents:** Mach-O executable, compiled Swift libraries, `CLiteRTLM.framework`, assets (`Assets.car`), UI icons, and strings.
-- **Expected IPA Size:** **15 MB to 25 MB** (typically ~18.5 MB).
+- **Expected IPA Size:** below **150 MB**, including the official runtime but excluding model weights.
 - **Prohibited Extensions:** `.litertlm`, `.bin`, `.task`, `.tflite`, `.gguf`, `.onnx`, `.weights`, `.safetensors`, `.pth`, `.pt`.
 
 ### 6.2 Automated Verification Commands
@@ -376,7 +376,7 @@ sequenceDiagram
 
 1. **Target Sandbox:** `Library/Application Support/EdgeEloquent/models/{modelId}/{commitHash}/`
 2. **iCloud Exclusion:** Directory is marked with `URLResourceValues.isExcludedFromBackup = true` to satisfy Apple App Store Guideline 2.2.
-3. **Integrity Check:** Files are verified against expected byte sizes and SHA-256 commit hashes before being loaded into `CLiteRTLM`.
+3. **Integrity Check:** Files are verified against exact expected byte sizes and pinned Git-LFS SHA-256 digests before being loaded into `CLiteRTLM`.
 
 ---
 

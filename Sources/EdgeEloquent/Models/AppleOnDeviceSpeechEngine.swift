@@ -178,12 +178,13 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
         }
         
         let request = SFSpeechURLRecognitionRequest(url: tempWavURL)
-        request.shouldReportPartialResults = true
+        // SFSpeechRecognizer may rewrite earlier partial hypotheses. The shared
+        // engine protocol only supports append-only tokens, so yielding partial
+        // deltas would permanently corrupt the transcript on such revisions.
+        request.shouldReportPartialResults = false
         request.requiresOnDeviceRecognition = true
         
         return AsyncThrowingStream { continuation in
-            var lastReportedText = ""
-            
             let task = recognizer.recognitionTask(with: request) { result, error in
                 if let error = error {
                     try? FileManager.default.removeItem(at: tempWavURL)
@@ -192,17 +193,12 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
                 }
                 
                 guard let result = result else { return }
-                let currentBest = result.bestTranscription.formattedString
-                
-                // Yield incremental delta between recognitions
-                if currentBest.count > lastReportedText.count {
-                    let deltaIndex = currentBest.index(currentBest.startIndex, offsetBy: lastReportedText.count)
-                    let newTokens = String(currentBest[deltaIndex...])
-                    lastReportedText = currentBest
-                    continuation.yield(newTokens)
-                }
-                
                 if result.isFinal {
+                    let finalText = result.bestTranscription.formattedString
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !finalText.isEmpty {
+                        continuation.yield(finalText + " ")
+                    }
                     try? FileManager.default.removeItem(at: tempWavURL)
                     continuation.finish()
                 }

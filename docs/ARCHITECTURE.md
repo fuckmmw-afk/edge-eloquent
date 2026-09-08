@@ -36,11 +36,11 @@ The Edge Eloquent architecture enforces five immutable invariants:
 1. **The Audio Air-Gap Invariant (Strict Privacy Guard):**  
    Raw microphone audio, PCM frames, WAV buffers, and spectrogram representations **never leave the local device boundary**. All speech comprehension occurs strictly on-device using local weights. Network requests are structurally barred from containing binary or audio payloads at both the compiler (Swift type system) and runtime (payload inspection guards) levels.
 2. **Zero Weights in Application Bundle (Lightweight IPA):**  
-   The binary IPA distribution contains only compiled application code, UI assets, and `CLiteRTLM.xcframework`. Total IPA size is constrained between **15 MB and 25 MB**. Model weights (2.5 GB to 4.7 GB) are acquired post-install via authenticated, chunk-resumable downloads from Hugging Face Hub.
+   The IPA contains application code, UI assets, and the official LiteRT-LM runtime, with a 150 MB archive ceiling. Model weights are never bundled and are acquired on demand through resumable downloads from pinned Hugging Face revisions.
 3. **Decoupled Engine Abstraction:**  
    The application communicates with speech comprehension engines exclusively through the `ModelEngine` Swift protocol. The production `LiteRTLMEngine` can be seamlessly hot-swapped for benchmarking, development mocks, or on-device baselines without affecting pipeline coordinators or UI layers.
 4. **Resilient Local Persistence (No Cloud Lock-In):**  
-   Transcript history is persisted strictly in local encrypted on-device storage (`Application Support`), explicitly marked as `isExcludedFromBackup = true` to avoid unencrypted iCloud leakage. Edge Eloquent requires **no user accounts, no telemetry, and no centralized databases**.
+   Transcript history is persisted under iOS Data Protection (`completeUntilFirstUserAuthentication`) in `Application Support` and explicitly excluded from backup. API credentials are stored in Keychain. Edge Eloquent requires **no user accounts, no telemetry, and no centralized databases**.
 5. **Memory-Conscious Jetsam Compliance:**  
    Inference execution is budgeted strictly within iOS per-process Jetsam boundaries (4.5 GB max resident memory on 8 GB devices) through off-main-thread actors, memory mapping (`mmap`), aggressive KV-cache windowing, and proactive lifecycle teardown.
 
@@ -98,7 +98,7 @@ flowchart TD
         CFWorker --> LLMReasoning["LLM Post-Processing\\n(Formatting & Disambiguation)"]
         CFWorker --> WebSearch["Search Augmentation\\n(Entity & Fact Verification)"]
         LLMReasoning & WebSearch --> AggregatedEnrichment["Final Enhanced Text Stream"]
-        AggregatedEnrichment -->|"SSE Stream / JSON"| HTTPSClient
+        AggregatedEnrichment -->|"JSON"| HTTPSClient
     end
 
     subgraph Stage8 ["Stage 8: Persistence & Presentation"]
@@ -160,7 +160,7 @@ public enum AudioFormatSpecification {
 |  State: Idle -> Configuring -> Recording -> Paused -> Finalizing     |
 |                                                                       |
 |  - Category: AVAudioSession.Category.playAndRecord                    |
-|  - Mode: AVAudioSession.Mode.spokenAudio (DSP Speech Filtering)       |
+|  - Mode: AVAudioSession.Mode.default (raw signal for inference)       |
 |  - Options: [.duckOthers, .allowBluetooth, .allowBluetoothA2DP]       |
 |  - Buffer Duration: 20ms slices (setPreferredIOBufferDuration: 0.02)  |
 |                                                                       |
@@ -214,7 +214,7 @@ public enum WAVEncoder {
 
 ### 3.3 Stage 3: Local AI Edge Runtime (`LiteRT-LM`)
 
-The inference execution engine wraps Google's `CLiteRTLM.xcframework` (v0.16.0) through native Swift bindings.
+The inference execution engine uses Google's official `LiteRTLM` Swift package pinned to 0.16.1.
 
 #### Hardware Backend Splitting Strategy
 Unlike vision or text LLMs where the entire model graph is offloaded to the GPU, multimodal speech models require split-backend dispatching:
@@ -451,7 +451,7 @@ Outbound JSON Payload (To Cloudflare Worker):
 
 Persistence strictly obeys the "No Cloud / No Account" policy:
 - **Location:** `Library/Application Support/EdgeEloquent/history/`
-- **File System Attribute:** Marked with `isExcludedFromBackup = true` to prevent unencrypted iCloud backup inclusion.
+- **File Protection:** Written with `completeUntilFirstUserAuthentication` and stored in a directory marked `isExcludedFromBackup = true`.
 - **Data Format:** Atomic JSON documents per session indexed in a lightweight SQLite / master index JSON.
 
 ```swift
@@ -485,18 +485,18 @@ Edge Eloquent's model architecture is built directly on the findings from Google
 
 ### 4.1 Supported Model Catalog
 
-The application maintains a dynamic registry matching Google's upstream allowlists (`ios_1_0_0.json` and `1_0_19.json`):
+The production iOS catalog is intentionally pinned to models validated by the public LiteRT-LM iOS path:
 
 | Model Name | Model ID / Hugging Face Repository | Artifact Name | Download Size | Minimum RAM | Accelerators | Features |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Gemma-3n-E2B-it** | `google/gemma-3n-E2B-it-litert-lm` | `gemma-3n-E2B-it-int4.litertlm` | 3.39 GB | 6 GB | GPU (LLM), CPU (Audio) | 4K Context, Audio+Vision |
-| **Gemma-3n-E4B-it** | `google/gemma-3n-E4B-it-litert-lm` | `gemma-3n-E4B-it-int4.litertlm` | 4.65 GB | 8 GB | GPU (LLM), CPU (Audio) | 4K Context, High-Capacity |
-| **Gemma-4-E2B-it** | `litert-community/gemma-4-E2B-it-litert-lm` | `gemma-4-E2B-it.litertlm` | 2.59 GB | 8 GB | GPU (LLM), CPU (Audio) | 32K Context, MTP Speculative |
-| **Gemma-4-E4B-it** | `litert-community/gemma-4-E4B-it-litert-lm` | `gemma-4-E4B-it.litertlm` | 3.66 GB | 12 GB | GPU (LLM), CPU (Audio) | 32K Context, Thinking Channel |
+| **Gemma-3n-E2B-it** | `google/gemma-3n-E2B-it-litert-lm` | `gemma-3n-E2B-it-int4.litertlm` | 3.66 GB | 4 GB | GPU (LLM), CPU (Audio) | 16K Context, Audio+Vision |
+| **Gemma-3n-E4B-it** | `google/gemma-3n-E4B-it-litert-lm` | `gemma-3n-E4B-it-int4.litertlm` | 4.92 GB | 6 GB | GPU (LLM), CPU (Audio) | 16K Context, High-Capacity |
+
+Gemma 4 descriptors remain in source only as research metadata. They are not shown as downloadable models until upstream publicly validates their iOS audio execution path.
 
 ### 4.2 Dynamic Model Registry
 
-The `ModelRegistry` synchronizes with Google's upstream raw allowlist on startup, with immediate fallback to a locally bundled manifest:
+Model metadata can be inspected through Hugging Face, but executable choices remain restricted to the pinned built-in catalog:
 
 ```swift
 // Models/ModelRegistry.swift
@@ -862,7 +862,7 @@ To validate this architecture against all requirements, the test harness enforce
 | :--- | :--- | :--- | :--- |
 | **Ingestion** | `AudioCaptureService` | `AVAudioEngine` / `AVAudioConverter` | 16kHz Mono Float32 resampled capture |
 | **Buffering** | `AudioSessionCoordinator` | `AVAudioSession` / RingBuffer | 15s chunk windowing, VAD gating, WAV encoding |
-| **Inference** | `LiteRTLMEngine` | `CLiteRTLM.xcframework` v0.16.0 | Local multimodal speech decoding (GPU + CPU) |
+| **Inference** | `LiteRTGemmaEngine` | `LiteRTLM` 0.16.1 | Local multimodal speech decoding (GPU + CPU) |
 | **Models** | `ModelRegistry` / Downloader | Hugging Face REST / `URLSession` | Dynamic allowlist, chunk-resumable download |
 | **Cleanup** | `LocalTranscriptCleaner` | Swift Regex & Heuristics | Remove vocal fillers, stutters, repetitions |
 | **Security** | `StrictTextOnlyGuard` | Binary Inspection & Introspection | Enforce text-only payload; reject audio/binaries |

@@ -27,6 +27,10 @@ final class SecurityAssertionTests: XCTestCase {
         XCTAssertNoThrow(try StrictTextOnlyGuard.validateOutboundPayload(validPayload, headers: headers))
     }
 
+    func testOrdinaryMagicWordsRemainValidText() throws {
+        XCTAssertNoThrow(try StrictTextOnlyGuard.validateTextOnly("FORM a RIFF with the ID3 team."))
+    }
+
     func testValidOutboundURLRequestPasses() throws {
         var request = URLRequest(url: URL(string: "https://worker.edge-eloquent.workers.dev/api/enhance")!)
         request.httpMethod = "POST"

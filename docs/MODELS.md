@@ -2,7 +2,9 @@
 
 **Document Version:** 1.0.0  
 **Target Platform:** iOS 17.0+ (Apple Silicon: A17 Pro, A18, A18 Pro, M-series)  
-**Upstream Runtime:** Google AI Edge LiteRT-LM (CLiteRTLM.xcframework v0.16.0)  
+**Upstream Runtime:** Google AI Edge LiteRT-LM 0.16.1
+
+> **iOS support note:** The application exposes only Gemma 3n E2B and E4B. Gemma 4 entries below are retained as research metadata and are not selectable until Google publishes them in the public iOS allowlist.
 **Distribution Model:** Dynamic On-Demand Delivery via Hugging Face Hub (Zero IPA Weights)  
 **Date:** September 2026  
 
@@ -24,18 +26,18 @@ Google manages certified edge models through versioned JSON allowlists. Rather t
 - **`ios_1_0_0.json`:** The production allowlist certified for iOS devices, enforcing memory-budgeted checkpoints compatible with Apple Silicon unified memory constraints.
 - **`1_0_19.json`:** The bleeding-edge Android/unified allowlist introducing 32K context windows, chain-of-thought reasoning (`llm_thinking`), and Multi-Token Prediction (`speculative_decoding`).
 
-#### Why Edge Eloquent Rejects Hardcoding Gemma-3n-E2B-it
-Hardcoding a single model (such as `Gemma-3n-E2B-it`) severely compromises software longevity and device flexibility:
-- **Device Diversity:** An iPhone 15 Pro (8 GB RAM) has different headroom compared to an iPhone 16 Pro Max (8 GB RAM with enhanced thermal dissipation) or an M4 iPad Pro (16 GB RAM). Larger devices can comfortably host `Gemma-4-E4B-it` (3.66 GB) or `Gemma-3n-E4B-it` (4.65 GB) for significantly enhanced transcription nuance.
-- **Context Length Scaling:** `Gemma-3n` is constrained to 4,096 tokens total, limiting continuous dictation sessions. `Gemma-4` expands the context horizon to 32,000 tokens, enabling long-form multi-minute dictation and multi-turn audio correction.
-- **Speculative Decoding:** `Gemma-4` supports Multi-Token Prediction (MTP), delivering up to 2x faster token generation rates during transcription decode.
+#### Why Edge Eloquent Uses a Pinned Catalog
+Only artifacts validated for the current public iOS runtime are selectable. The catalog currently contains Gemma 3n E2B and E4B; adding a model requires a pinned repository revision, exact size, SHA-256 digest, and a successful iOS runtime validation.
+- **Device Diversity:** E2B is the lower-memory default, while E4B is offered for devices with more unified-memory headroom.
+- **Context Length:** Both packaged Gemma 3n descriptors use a 16,384-token engine limit.
+- **Forward Compatibility:** Gemma 4 descriptors are retained for research, but are not presented as supported downloads.
 - **Fallback Capability:** Edge Eloquent provides an instant zero-download fallback engine (`AppleOnDeviceSpeechEngine` using native iOS `SFSpeechRecognizer`) for zero-storage or low-memory scenarios.
 
 ---
 
 ## 2. Supported Audio-Capable Models Specification
 
-Edge Eloquent officially supports all four audio-capable multimodal models defined in the Google AI Edge Gallery allowlists, plus the zero-download Apple native speech engine.
+Edge Eloquent supports two pinned Gemma 3n audio models plus the zero-download Apple native speech engine. Gemma 4 rows in historical research tables below are non-production metadata and must not be treated as selectable models.
 
 ```
 +---------------------------------------------------------------------------------------------------------+
@@ -149,7 +151,7 @@ Edge Eloquent enforces an immutable architectural invariant:
 |  - Compiled Swift Machine Code (arm64)                                                         |
 |  - CLiteRTLM.xcframework C++ Native Binaries (Metal Shaders, Tokenizer)                        |
 |  - UI Assets, Icons, Localizations, Audio Pipeline Helpers                                     |
-|  TOTAL IPA SIZE: ~18 MB - 25 MB                                                                |
+|  TOTAL IPA SIZE: runtime included, model weights excluded; release gate is 150 MB              |
 +------------------------------------------------------------------------------------------------+
                                               |
                                               | Post-Install On-Demand Download
@@ -170,10 +172,10 @@ Edge Eloquent enforces an immutable architectural invariant:
    - Apple caps universal binary download sizes over cellular connections (warning at 200 MB).
    - Apple imposes a strict maximum of **4 GB per uncompressed application slice**. Models like `Gemma-3n-E4B-it` (4.65 GB) literally cannot be packaged into an IPA without violating App Store submission limits.
 2. **Rapid Iteration & Release Velocity:**
-   - App updates with UI enhancements or bug fixes remain ultra-lightweight (15–25 MB), downloading in seconds over cellular networks.
+   - App updates include the LiteRT-LM runtime but never multi-gigabyte model weights.
    - Forcing users to download a 3.5 GB app update for a one-line bug fix leads to abandonment and user frustration.
 3. **Storage Tiering & User Discretion:**
-   - Users decide which model fits their device and storage situation. A user with an 8 GB iPhone 15 Pro can download `Gemma-4-E2B-it` (2.59 GB), while a user with 16 GB iPad Pro can download `Gemma-4-E4B-it` (3.66 GB).
+   - Users decide whether the lower-memory Gemma 3n E2B or higher-capacity Gemma 3n E4B fits their device and storage situation.
    - Users without available storage can immediately transcribe using the built-in `AppleOnDeviceSpeechEngine` without downloading anything.
 4. **Gated License Compliance (Google Responsible AI):**
    - Gemma models are distributed under Google's Responsible AI Terms of Use. Hosting weights directly in an IPA circumvents Hugging Face user acceptance terms. On-demand downloading allows users to supply their Hugging Face User Access Token (Bearer Token) to authenticate gated repositories.

@@ -58,7 +58,7 @@ public final class DictationCoordinator: ObservableObject {
     @Published public var liveWaveformLevels: [Float] = []
     @Published public var currentDuration: TimeInterval = 0.0
     @Published public var activeRecord: TranscriptionRecord? = nil
-    @Published public var activeEngineName: String = "Gemma-4-E2B-it"
+    @Published public var activeEngineName: String = "Apple Native Speech"
     @Published public var lastErrorMessage: String? = nil
 
     // MARK: - Dependencies
@@ -74,7 +74,9 @@ public final class DictationCoordinator: ObservableObject {
     private var durationTimer: Timer?
     private var recordingStartTime: Date?
     private var streamProcessingTask: Task<Void, Never>?
+    private var captureStartTask: Task<Void, Never>?
     private var accumulatedTokens: [String] = []
+    private var streamError: Error?
 
     // MARK: - Initialization
 
@@ -145,7 +147,7 @@ public final class DictationCoordinator: ObservableObject {
             let fileURL = modelManager.modelFileURL(for: active)
             if FileManager.default.fileExists(atPath: fileURL.path) {
                 // Map SupportedAudioModel to ModelInfo
-                let info = ModelInfo.allSupportedModels.first(where: { $0.id == active.id || $0.modelId == active.id }) ?? ModelInfo.defaultModel
+                let info = ModelInfo(supportedModel: active)
 
                 // If existing activeEngine is for a different model, unload it first
                 if let existing = activeEngine {
@@ -177,12 +179,9 @@ public final class DictationCoordinator: ObservableObject {
         }
 
         let fallback = AppleOnDeviceSpeechEngine()
-        do {
-            try await fallback.load()
-        } catch {
-            print("[DictationCoordinator] Apple Speech Engine load warning: \(error.localizedDescription)")
-        }
+        try await fallback.load()
         self.activeEngine = fallback
+        self.activeEngineName = fallback.modelInfo.name
         return fallback
     }
 
@@ -196,6 +195,7 @@ public final class DictationCoordinator: ObservableObject {
         realtimePartialTranscript = ""
         finalizedTranscript = ""
         accumulatedTokens = []
+        streamError = nil
         currentDuration = 0.0
         activeRecord = nil
         lastErrorMessage = nil
@@ -217,10 +217,17 @@ public final class DictationCoordinator: ObservableObject {
         }
 
         // Start capture and listen to audio chunk stream
-        Task {
+        captureStartTask?.cancel()
+        captureStartTask = Task { [weak self] in
+            guard let self else { return }
             do {
                 let engine = try await resolveEngine()
+                try Task.checkCancellation()
                 try await audioCapture.startCapture()
+                if Task.isCancelled {
+                    _ = await audioCapture.stopCapture()
+                    return
+                }
 
                 // Process continuous audio chunks emitted by UnifiedAudioCapture
                 streamProcessingTask = Task { [weak self] in
@@ -237,11 +244,16 @@ public final class DictationCoordinator: ObservableObject {
                                 }
                             }
                         } catch {
+                            await MainActor.run {
+                                self.streamError = error
+                                self.lastErrorMessage = error.localizedDescription
+                            }
                             print("[DictationCoordinator] Chunk transcription warning: \(error.localizedDescription)")
                         }
                     }
                 }
             } catch {
+                if error is CancellationError { return }
                 await MainActor.run {
                     self.durationTimer?.invalidate()
                     self.durationTimer = nil
@@ -264,6 +276,16 @@ public final class DictationCoordinator: ObservableObject {
         state = .processing(stage: .transcribing)
 
         Task { [self] in
+            // If Stop was tapped while permissions/model loading were still in progress,
+            // wait until startup has either completed or failed before tearing capture down.
+            if let task = captureStartTask {
+                await task.value
+            }
+            captureStartTask = nil
+            if case .error = state {
+                return
+            }
+
             // 1. Terminate audio capture (UnifiedAudioCapture.stopCapture flushes any remaining chunk to chunkStream and finishes it)
             _ = await audioCapture.stopCapture()
 
@@ -274,6 +296,11 @@ public final class DictationCoordinator: ObservableObject {
             streamProcessingTask = nil
 
             var rawTranscript = accumulatedTokens.joined().trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            if rawTranscript.isEmpty, let error = streamError {
+                lastErrorMessage = error.localizedDescription
+                state = .error(message: error.localizedDescription)
+                return
+            }
             if rawTranscript.isEmpty {
                 // If microphone picked up only silence, provide graceful fallback
                 rawTranscript = "No audible speech detected."
@@ -325,6 +352,7 @@ public final class DictationCoordinator: ObservableObject {
 
             // 5. Stage 4: Local History Store Persistence
             let record = TranscriptionRecord(
+                rawTranscript: rawTranscript,
                 cleanTranscript: cleanTranscript,
                 finalText: finalText,
                 modelUsed: activeEngineName,
@@ -333,6 +361,11 @@ public final class DictationCoordinator: ObservableObject {
             )
 
             historyStore.saveRecord(record)
+            if let persistenceError = historyStore.lastPersistenceError {
+                lastErrorMessage = persistenceError
+                state = .error(message: persistenceError)
+                return
+            }
 
             // Auto-copy to clipboard if configured
             if appConfig.autoCopyToClipboard {
@@ -350,6 +383,8 @@ public final class DictationCoordinator: ObservableObject {
     public func cancelRecording() {
         durationTimer?.invalidate()
         durationTimer = nil
+        captureStartTask?.cancel()
+        captureStartTask = nil
         streamProcessingTask?.cancel()
         streamProcessingTask = nil
 

@@ -34,7 +34,7 @@ public struct CloudflareConfiguration: Sendable {
     
     /// Constructs configuration securely from environment variables if present, with safe fallback.
     public static func fromEnvironment(
-        defaultURL: URL = URL(string: "https://edge-eloquent-worker.workers.dev/api/enhance")!
+        defaultURL: URL = URL(string: "https://invalid.invalid/api/enhance")!
     ) -> CloudflareConfiguration {
         let envURLString = ProcessInfo.processInfo.environment["EDGE_ELOQUENT_CF_URL"]
         let url = envURLString.flatMap(URL.init(string:)) ?? defaultURL

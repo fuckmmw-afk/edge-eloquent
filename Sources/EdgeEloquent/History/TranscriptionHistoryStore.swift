@@ -53,6 +53,7 @@ public final class TranscriptionHistoryStore: ObservableObject {
 
     /// In-memory records list, ordered newest first.
     @Published public private(set) var records: [TranscriptionRecord] = []
+    @Published public private(set) var lastPersistenceError: String?
 
     /// Clears all records from history.
     public func clearAll() {
@@ -78,6 +79,7 @@ public final class TranscriptionHistoryStore: ObservableObject {
         self.fileManager = fileManager
 
         createDirectoryIfNeeded()
+        excludeStorageFromBackup()
         loadRecords()
     }
 
@@ -120,6 +122,13 @@ public final class TranscriptionHistoryStore: ObservableObject {
                 print("[TranscriptionHistoryStore] Failed to create directory at \(dir.path): \(error)")
             }
         }
+    }
+
+    private func excludeStorageFromBackup() {
+        var directory = destinationURL.deletingLastPathComponent()
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? directory.setResourceValues(values)
     }
 
     // MARK: - CRUD Operations
@@ -243,12 +252,17 @@ public final class TranscriptionHistoryStore: ObservableObject {
     }
 
     /// Synchronously encodes and writes the entire records array to disk atomically.
-    public func persistAllRecordsImmediately() {
+    @discardableResult
+    public func persistAllRecordsImmediately() -> Bool {
         do {
             let data = try Self.encoder.encode(records)
-            try data.write(to: destinationURL, options: .atomic)
+            try data.write(to: destinationURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            lastPersistenceError = nil
+            excludeStorageFromBackup()
+            return true
         } catch {
-            print("[TranscriptionHistoryStore] Failed to write history atomically to \(destinationURL.path): \(error)")
+            lastPersistenceError = HistoryStoreError.writeFailed(error.localizedDescription).localizedDescription
+            return false
         }
     }
 

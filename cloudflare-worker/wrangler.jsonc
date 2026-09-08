@@ -2,16 +2,16 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "edge-eloquent-worker",
   "main": "src/index.js",
-  "compatibility_date": "2024-09-23",
+  "compatibility_date": "2026-09-08",
   "compatibility_flags": ["nodejs_compat"],
   "ai": {
     "binding": "AI"
   },
   "vars": {
     "ENVIRONMENT": "production",
-    "DEFAULT_MODEL": "@cf/meta/llama-3.3-70b-instruct",
-    "FALLBACK_MODEL": "@cf/meta/llama-3.1-8b-instruct",
-    "ENABLE_WEB_SEARCH": "true"
+    "DEFAULT_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    "FALLBACK_MODEL": "@cf/meta/llama-3.1-8b-instruct-fast",
+    "ENABLE_WEB_SEARCH": "false"
   },
   "observability": {
     "enabled": true

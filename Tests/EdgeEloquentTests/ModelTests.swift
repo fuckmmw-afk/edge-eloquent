@@ -14,8 +14,6 @@ final class ModelTests: XCTestCase {
         let models = ModelInfo.allLiteRTAudioModels
         let ids = Set(models.map { $0.id })
         
-        XCTAssertTrue(ids.contains("gemma-4-e2b-it"), "Gemma-4-E2B-it must be supported.")
-        XCTAssertTrue(ids.contains("gemma-4-e4b-it"), "Gemma-4-E4B-it must be supported.")
         XCTAssertTrue(ids.contains("gemma-3n-e2b-it"), "Gemma-3n-E2B-it must be supported.")
         XCTAssertTrue(ids.contains("gemma-3n-e4b-it"), "Gemma-3n-E4B-it must be supported.")
         
@@ -68,7 +66,7 @@ final class ModelTests: XCTestCase {
     }
     
     func testEngineLifecycleState() async throws {
-        let engine = LiteRTGemmaEngine(modelInfo: .gemma4_E2B)
+        let engine = LiteRTGemmaEngine(modelInfo: .gemma3n_E2B)
         XCTAssertFalse(engine.isLoaded)
         
         // Calling transcribeAudio without loading should throw modelNotLoaded

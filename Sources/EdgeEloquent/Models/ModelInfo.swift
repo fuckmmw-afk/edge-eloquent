@@ -191,7 +191,7 @@ extension ModelInfo {
         modelFile: "gemma-4-E2B-it.litertlm",
         sizeInBytes: 2_583_085_056, // ~2.58 GB
         minDeviceMemoryInGb: 8,
-        commitHash: "6e5c4f1e395deb959c494953478fa5cec4b8008f",
+        commitHash: "7fa1d78473894f7e736a21d920c3aa80f950c0db",
         accelerators: ModelAccelerators(llm: .gpu, audio: .cpu, vision: .gpu),
         taskTypes: [.askAudio, .chat, .transcription, .thinking],
         maxContextTokens: 32_000,
@@ -212,7 +212,7 @@ extension ModelInfo {
         modelFile: "gemma-4-E4B-it.litertlm",
         sizeInBytes: 3_659_530_240, // ~3.66 GB
         minDeviceMemoryInGb: 12,
-        commitHash: "28299f30ee4d43294517a4ac93abd6163412f07f",
+        commitHash: "2eee7ac325f20eb8c9ac1d0e972f7c84663062da",
         accelerators: ModelAccelerators(llm: .gpu, audio: .cpu, vision: .gpu),
         taskTypes: [.askAudio, .chat, .transcription, .thinking],
         maxContextTokens: 32_000,
@@ -233,7 +233,7 @@ extension ModelInfo {
         modelFile: "gemma-3n-E2B-it-int4.litertlm",
         sizeInBytes: 3_655_827_456, // ~3.66 GB
         minDeviceMemoryInGb: 6,
-        commitHash: "73b019b63436d346f68dd9c1dbfd117eb264d888",
+        commitHash: "c03b6f60b8da6c5400b6838a2cf26420f80c0a01",
         accelerators: ModelAccelerators(llm: .gpu, audio: .cpu, vision: .gpu),
         taskTypes: [.askAudio, .chat, .transcription],
         maxContextTokens: 4_096,
@@ -254,7 +254,7 @@ extension ModelInfo {
         modelFile: "gemma-3n-E4B-it-int4.litertlm",
         sizeInBytes: 4_919_541_760, // ~4.92 GB
         minDeviceMemoryInGb: 8,
-        commitHash: "3d0179a0648381585ab337e170b7517aae8e0ce4",
+        commitHash: "297ed75955702dec3503e00c2c2ecbbf475300bc",
         accelerators: ModelAccelerators(llm: .gpu, audio: .cpu, vision: .gpu),
         taskTypes: [.askAudio, .chat, .transcription],
         maxContextTokens: 4_096,
@@ -289,23 +289,19 @@ extension ModelInfo {
     
     /// All audio-capable LiteRT-LM models from Google AI Edge Gallery allowlists.
     public static let allLiteRTAudioModels: [ModelInfo] = [
-        gemma4_E2B,
-        gemma4_E4B,
         gemma3n_E2B,
         gemma3n_E4B
     ]
     
     /// Complete catalog of all supported speech models including the native iOS fallback.
     public static let allSupportedModels: [ModelInfo] = [
-        gemma4_E2B,
-        gemma4_E4B,
         gemma3n_E2B,
         gemma3n_E4B,
         appleNative
     ]
     
     /// Default active model preset (Gemma 4 E2B-it).
-    public static let defaultModel: ModelInfo = gemma4_E2B
+    public static let defaultModel: ModelInfo = gemma3n_E2B
 }
 
 // MARK: - SupportedAudioModel Interoperability
@@ -340,4 +336,3 @@ extension ModelInfo {
         )
     }
 }
-

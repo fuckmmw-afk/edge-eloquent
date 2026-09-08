@@ -39,7 +39,7 @@ When a user adds `feather-source.json` to Feather:
 +-----------------------------------------------------------------------------------+
 |                        GITHUB RELEASES (CDN / STORAGE)                            |
 |                        v1.0.0 / EdgeEloquent.ipa                                  |
-|   - Direct HTTPS download of signed / sign-ready binary (18.5 MB)                 |
+|   - Direct HTTPS download of the signed / sign-ready binary                       |
 |   - Feather re-signs with user's certificate/profile and installs directly         |
 +-----------------------------------------------------------------------------------+
 ```

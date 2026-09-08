@@ -42,6 +42,10 @@ jobs:
         run: |
           python3 Tests/validate_feather.py feather-source.json
 
+      - name: Cloudflare Worker Tests
+        working-directory: cloudflare-worker
+        run: npm test
+
       - name: Security Assertions & Zero-Weights Check
         run: |
           chmod +x scripts/assert_no_weights.sh
@@ -71,16 +75,13 @@ jobs:
           APP_DIR="$PWD/build/EdgeEloquent.xcarchive/Products/Applications/EdgeEloquent.app"
           mkdir -p "$APP_DIR"
 
-          # 0. Cache canonical handcrafted Info.plist
-          cp Resources/Info.plist /tmp/Canonical_Info.plist
+          # 1. Generate the canonical Xcode project.
+          brew install xcodegen
+          xcodegen generate
 
-          # 1. Attempt Xcode project generation via xcodegen
-          brew install xcodegen || true
-          xcodegen generate || true
-
-          if [ -d "EdgeEloquent.xcodeproj" ]; then
-            echo "Building with EdgeEloquent.xcodeproj using xcodebuild..."
-            xcodebuild archive \
+          test -d "EdgeEloquent.xcodeproj"
+          echo "Building with EdgeEloquent.xcodeproj using xcodebuild..."
+          xcodebuild archive \
               -project EdgeEloquent.xcodeproj \
               -scheme EdgeEloquent \
               -configuration Release \
@@ -90,23 +91,11 @@ jobs:
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGN_IDENTITY="" \
               DEVELOPMENT_TEAM="" \
-              COMPILER_INDEX_STORE_ENABLE=NO || true
-          fi
+              COMPILER_INDEX_STORE_ENABLE=NO
 
-          # 2. If xcodebuild did not produce executable, compile directly using swiftc with iPhoneOS SDK
-          if [ ! -f "$APP_DIR/EdgeEloquent" ]; then
-            echo "Directly compiling for iOS (arm64-apple-ios16.0) using swiftc..."
-            IOS_SDK=$(xcrun --sdk iphoneos --show-sdk-path)
-            echo "Targeting iPhoneOS SDK: $IOS_SDK"
-            SWIFT_FILES=$(find Sources -name "*.swift")
-            swiftc \
-              -target arm64-apple-ios16.0 \
-              -sdk "$IOS_SDK" \
-              -O \
-              -emit-executable \
-              -o "$APP_DIR/EdgeEloquent" \
-              $SWIFT_FILES
-          fi
+          test -f "$APP_DIR/EdgeEloquent"
+          test -d "$APP_DIR/Frameworks"
+          find "$APP_DIR/Frameworks" -maxdepth 2 -iname '*LiteRT*' | grep -q .
 
           # 3. Mandatory Mach-O Platform Verification (Must be platform 2 = iOS)
           echo "Inspecting compiled binary architecture and platform..."
@@ -119,7 +108,7 @@ jobs:
             echo "CRITICAL FAULT: Executable is not built for iOS! (Platform: $PLATFORM)"
             exit 1
           fi
-          echo "VERIFIED: Executable is authentic Mach-O targeting iOS (Platform 2) with MinimumOSVersion 16.0"
+          echo "VERIFIED: Executable is authentic Mach-O targeting iOS (Platform 2) with MinimumOSVersion 17.0"
 
       - name: Package Unsigned IPA
         run: |
@@ -133,12 +122,6 @@ jobs:
           echo "Packaging application bundle from: $APP_SOURCE"
           cp -R "$APP_SOURCE" Payload/
           
-          # Overwrite with canonical concrete Info.plist
-          if [ -f "/tmp/Canonical_Info.plist" ]; then
-            cp "/tmp/Canonical_Info.plist" "Payload/EdgeEloquent.app/Info.plist"
-          else
-            cp "Resources/Info.plist" "Payload/EdgeEloquent.app/Info.plist"
-          fi
           cp -R Resources/*.png "Payload/EdgeEloquent.app/" 2>/dev/null || true
           
           # Convert to standard XML plist format
@@ -156,7 +139,7 @@ jobs:
           p = plistlib.load(open("Payload/EdgeEloquent.app/Info.plist", "rb"))
           assert p.get("CFBundleIdentifier") == "com.edgeeloquent.app", f"Invalid bundle id: {p.get("CFBundleIdentifier")}"
           assert p.get("CFBundleName") == "EdgeEloquent", f"Invalid name: {p.get("CFBundleName")}"
-          assert p.get("CFBundleShortVersionString") == "1.0.0", f"Invalid version: {p.get("CFBundleShortVersionString")}"
+          assert p.get("CFBundleShortVersionString") == "1.0.1", f"Invalid version: {p.get("CFBundleShortVersionString")}"
           print("BUNDLE METADATA VALIDATED:")
           print("  CFBundleName:", p.get("CFBundleName"))
           print("  CFBundleDisplayName:", p.get("CFBundleDisplayName"))
@@ -183,8 +166,8 @@ jobs:
 
           IPA_SIZE=$(stat -f%z EdgeEloquent.ipa 2>/dev/null || stat -c%s EdgeEloquent.ipa 2>/dev/null || echo 0)
           echo "Audited IPA Size: $IPA_SIZE bytes"
-          if [ "$IPA_SIZE" -gt 52428800 ]; then
-            echo "ERROR: IPA exceeds size limit of 50MB ($IPA_SIZE bytes). Build failed."
+          if [ "$IPA_SIZE" -gt 157286400 ]; then
+            echo "ERROR: IPA exceeds size limit of 150MB ($IPA_SIZE bytes). Build failed."
             exit 1
           fi
 
@@ -216,6 +199,7 @@ jobs:
           VERSION="${TAG_NAME#v}"
           IPA_SIZE=$(stat -c%s EdgeEloquent.ipa 2>/dev/null || stat -f%z EdgeEloquent.ipa 2>/dev/null || echo 18500000)
           DATE_STR=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          export TAG_NAME VERSION IPA_SIZE DATE_STR
           
           echo "Updating feather-source.json for version $VERSION ($IPA_SIZE bytes)..."
           python3 - << 'PY'
@@ -247,7 +231,7 @@ jobs:
                       "size": size,
                       "downloadURL": download_url,
                       "localizedDescription": app.get("versionDescription", f"Release {version}"),
-                      "minOSVersion": "16.0"
+                      "minOSVersion": "17.0"
                   })
               else:
                   for v in versions:
@@ -286,8 +270,17 @@ jobs:
             - **TrollStore / Sideloadly**: Directly import and install `EdgeEloquent.ipa`.
             
             ### 🔒 Privacy & Architecture Notes
-            - **Zero Bundled Weights:** This IPA distribution weighs only **~18.5 MB** and contains **NO model weights**.
-            - On-device speech recognition weights (Gemma 3n / Gemma 4) are downloaded on first launch from Hugging Face Hub directly to sandboxed local storage.
+            - **Zero Bundled Weights:** The IPA contains the official LiteRT-LM runtime and **NO model weights**.
+            - On-device Gemma 3n speech model weights are downloaded on demand from pinned Hugging Face revisions and verified with SHA-256.
             - Outbound network requests are structurally quarantined to plain text; raw microphone audio never leaves your Apple Silicon hardware.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish updated source metadata to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add feather-source.json
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(release): update Feather metadata for ${GITHUB_REF_NAME}"
+          git push origin HEAD:main

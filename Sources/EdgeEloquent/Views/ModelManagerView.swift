@@ -253,8 +253,12 @@ public struct ModelManagerView: View {
                         .foregroundColor(Theme.successGreen)
                 } else {
                     Button("Switch") {
-                        UserDefaults.standard.set("apple-native-speech", forKey: ModelManager.activeModelUserDefaultsKey)
-                        modelManager.refreshModelStates()
+                        do {
+                            try modelManager.setActiveModel(id: "apple-native-speech")
+                        } catch {
+                            alertMessage = error.localizedDescription
+                            showAlert = true
+                        }
                     }
                     .font(.caption)
                     .fontWeight(.semibold)

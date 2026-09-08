@@ -127,7 +127,7 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
         filename: "gemma-4-E2B-it.litertlm",
         commitHash: "7fa1d78473894f7e736a21d920c3aa80f950c0db",
         expectedBytes: 2_583_085_056,
-        expectedSHA256: nil,
+        expectedSHA256: "ab7838cdfc8f77e54d8ca45eadceb20452d9f01e4bfade03e5dce27911b27e42",
         minRAMBytes: 8_589_934_592,
         minRAMDescription: "8 GB",
         contextWindowTokens: 32_000,
@@ -146,7 +146,7 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
         filename: "gemma-3n-E2B-it-int4.litertlm",
         commitHash: "c03b6f60b8da6c5400b6838a2cf26420f80c0a01",
         expectedBytes: 3_655_827_456,
-        expectedSHA256: nil,
+        expectedSHA256: "2ed7bc3a0026c93d5b8a4544b352d9d00cd66ff0bac3ef6a20ac3d2cba4010d6",
         minRAMBytes: 4_294_967_296,
         minRAMDescription: "4 GB",
         contextWindowTokens: 16_384,
@@ -165,7 +165,7 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
         filename: "gemma-3n-E4B-it-int4.litertlm",
         commitHash: "297ed75955702dec3503e00c2c2ecbbf475300bc",
         expectedBytes: 4_919_541_760,
-        expectedSHA256: nil,
+        expectedSHA256: "2e67a6cd51dfe0f793431e6bd4ed8d029c88e10f52ca0469ad38445e3cd3c1f4",
         minRAMBytes: 6_442_450_944,
         minRAMDescription: "6 GB",
         contextWindowTokens: 16_384,
@@ -184,7 +184,7 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
         filename: "gemma-4-E4B-it.litertlm",
         commitHash: "2eee7ac325f20eb8c9ac1d0e972f7c84663062da",
         expectedBytes: 3_659_530_240,
-        expectedSHA256: nil,
+        expectedSHA256: "0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0",
         minRAMBytes: 8_589_934_592,
         minRAMDescription: "8 GB",
         contextWindowTokens: 32_000,
@@ -195,22 +195,20 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
         modelDescription: "State-of-the-art 4B parameter multimodal model for flagship devices with 8GB+ unified memory."
     )
 
-    /// All officially verified audio-capable models.
+    /// Models publicly validated for the iOS LiteRT-LM path.
     public static var allModels: [SupportedAudioModel] {
         allPredefined
     }
 
     /// Pre-configured list of all officially verified audio-capable models.
     public static let allPredefined: [SupportedAudioModel] = [
-        gemma4_E2B_it,
         gemma3n_E2B_it,
-        gemma3n_E4B_it,
-        gemma4_E4B_it
+        gemma3n_E4B_it
     ]
 
     /// Default model suggested for initial setup on most supported iOS devices.
     public static var defaultModel: SupportedAudioModel {
-        gemma4_E2B_it
+        gemma3n_E2B_it
     }
 
     /// Searches predefined models by id, name, or repository slug.

@@ -146,7 +146,6 @@ public struct LocalTranscriptCleaner: LocalCleanupProvider, Sendable {
             rules.append((compile(#"(?i)(?:,\s*)?\b(?:sort|kind)\s+of\b(?:\s*,)?"#), " ", "sort of / kind of"))
             rules.append((compile(#"(?i)(?:^|(?<=[,\.!?]\s))\bbasically[,\s]*"#), "", "basically"))
             rules.append((compile(#"(?i),\s*basically\s*,"#), " ", "basically"))
-            rules.append((compile(#"(?i)\bbasically\b(?:\s*,)?"#), "", "basically"))
             rules.append((compile(#"(?i)(?:^|(?<=[,\.!?]\s))\bactually[,\s]*"#), "", "actually"))
             rules.append((compile(#"(?i),\s*actually\s*,"#), " ", "actually"))
             rules.append((compile(#"(?i)(?:,\s*)?\bactually\b(?=\s*[,\.!?]|$)"#), "", "actually"))
@@ -157,15 +156,13 @@ public struct LocalTranscriptCleaner: LocalCleanupProvider, Sendable {
             
             // Russian fillers
             // "короче говоря" / "короче"
-            rules.append((compile(#"(?i)\bкороче(?:\s+говоря)?\b(?:\s*,)?"#), " ", "короче"))
+            rules.append((compile(#"(?i)(?:^|(?<=[,\.!?]\s))\bкороче(?:\s+говоря)?\b(?:\s*,)?"#), " ", "короче"))
             // "в общем говоря" / "в общем"
-            rules.append((compile(#"(?i)(?:,\s*)?\bв\s+общем(?:\s+говоря)?\b(?:\s*,)?"#), " ", "в общем"))
+            rules.append((compile(#"(?i)(?:^|(?<=[,\.!?]\s))\bв\s+общем(?:\s+говоря)?\b(?:\s*,)?"#), " ", "в общем"))
             // "как бы" (preserving "как бы то ни было", "как бы ни было")
             rules.append((compile(#"(?i)(?:,\s*)?\bкак\s+бы\b(?!\s+(?:то\s+)?ни\s+было)(?:\s*,)?"#), " ", "как бы"))
             // "типа"
-            rules.append((compile(#"(?i)(?:,\s*)?\bтипа\b(?:\s*,)?"#), " ", "типа"))
-            // "значит" (when filler: not preceded by "это" or "что")
-            rules.append((compile(#"(?i)(?<!\b(?:это|что)\s)(?:,\s*)?\bзначит\b(?=[,\s]|$)(?:\s*,)?"#), " ", "значит"))
+            rules.append((compile(#"(?i)(?:^|(?<=[,\.!?]\s))\bтипа\b(?:\s*,)?"#), " ", "типа"))
             // "ну" (standalone or introductory)
             rules.append((compile(#"(?i)(?:^|(?<=[,\.!?]\s)|(?<=\s))\bну\b(?=[,\s]|$)(?:\s*,)?"#), "", "ну"))
             // "вот" at sentence end: ", вот."

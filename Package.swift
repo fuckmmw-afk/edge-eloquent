@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "EdgeEloquent",
     platforms: [
-        .iOS(.v16),
+        .iOS(.v17),
         .macOS(.v14)
     ],
     products: [
@@ -19,11 +19,18 @@ let package = Package(
             targets: ["EdgeEloquent"]
         ),
     ],
-    dependencies: [],
+    dependencies: [
+        .package(
+            url: "https://github.com/google-ai-edge/LiteRT-LM.git",
+            exact: "0.16.1"
+        )
+    ],
     targets: [
         .target(
             name: "EdgeEloquent",
-            dependencies: [],
+            dependencies: [
+                .product(name: "LiteRTLM", package: "LiteRT-LM")
+            ],
             path: "Sources/EdgeEloquent"
         ),
         .executableTarget(

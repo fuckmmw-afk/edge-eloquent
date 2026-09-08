@@ -5,7 +5,7 @@ Serverless edge LLM post-processing and web search augmentation worker for **Edg
 ## Privacy Architecture & Invariants
 
 This worker operates under a **Strict Text-Only Privacy Invariant**:
-- **Zero Audio Ingestion:** It enforces structural and byte-level rejection of raw audio (RIFF/WAV, MP3, OGG, FLAC, M4A, CAF), binary payloads, and multipart uploads.
+- **Narrow Request Schema:** Only the documented scalar fields are accepted; binary-shaped fields, multipart bodies, and payloads beginning with known audio headers are rejected.
 - **Pure Text Payloads:** Only strictly UTF-8 formatted JSON payloads are accepted.
 - **Zero User Tracking:** No user identifiers, device fingerprints, or audio recordings are logged or stored.
 
@@ -15,11 +15,11 @@ This worker operates under a **Strict Text-Only Privacy Invariant**:
 
 ### `POST /api/enhance`
 
-Enriches, corrects, and formats raw transcript text using Cloudflare Workers AI (`@cf/meta/llama-3.3-70b-instruct`).
+Enriches, corrects, and formats raw transcript text using Cloudflare Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`).
 
 #### Headers
 - `Content-Type: application/json; charset=utf-8` (Required)
-- `Authorization: Bearer <API_TOKEN>` (Optional, required if `AUTH_BEARER_TOKEN` secret is configured)
+- `Authorization: Bearer <API_TOKEN>` (Required in production)
 
 #### Request Body
 ```json
@@ -27,7 +27,7 @@ Enriches, corrects, and formats raw transcript text using Cloudflare Workers AI 
   "text": "Um, we we should schedule the meeting for, you know, tomorrow at 2pm.",
   "language": "en",
   "mode": "professional",
-  "enableWebSearch": true
+  "enableWebSearch": false
 }
 ```
 
@@ -96,10 +96,10 @@ npm run dev
 Never commit secrets or API tokens to source control. Set secrets securely using Wrangler:
 
 ```bash
-# Optional: Set bearer token for iOS client authentication
+# Required: set bearer token for iOS client authentication
 wrangler secret put AUTH_BEARER_TOKEN
 
-# Optional: Tavily Search API key for deep web research
+# Optional: Tavily Search API key. Enabling search sends a derived query to Tavily or DuckDuckGo.
 wrangler secret put TAVILY_API_KEY
 ```
 

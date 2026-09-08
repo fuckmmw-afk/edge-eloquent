@@ -168,13 +168,13 @@ public final class AudioSessionCoordinator: @unchecked Sendable {
     /// Configures the shared AVAudioSession for spoken audio dictation.
     ///
     /// Category: `.playAndRecord`
-    /// Mode: `.spokenAudio`
+    /// Mode: `.default` (preserves the raw microphone signal for model inference)
     /// Options: `[.duckOthers, .allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker]`
     public func configureSession() throws {
         #if os(iOS) || os(visionOS)
         let session = AVAudioSession.sharedInstance()
 
-        var options: AVAudioSession.CategoryOptions = [
+        let options: AVAudioSession.CategoryOptions = [
             .duckOthers,
             .defaultToSpeaker,
             .allowBluetooth

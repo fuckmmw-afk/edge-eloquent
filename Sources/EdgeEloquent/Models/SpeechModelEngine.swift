@@ -19,6 +19,7 @@ public enum SpeechModelEngineError: LocalizedError, Sendable, Equatable {
     case cancelled
     case speechRecognitionUnavailable
     case speechRecognitionPermissionDenied
+    case runtimeUnavailable
     
     public var errorDescription: String? {
         switch self {
@@ -42,6 +43,8 @@ public enum SpeechModelEngineError: LocalizedError, Sendable, Equatable {
             return "Apple native speech recognition service is currently unavailable."
         case .speechRecognitionPermissionDenied:
             return "Speech recognition authorization was denied by the user."
+        case .runtimeUnavailable:
+            return "LiteRT-LM runtime is unavailable in this build."
         }
     }
 }

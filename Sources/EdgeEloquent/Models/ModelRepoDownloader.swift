@@ -213,6 +213,20 @@ public final class ModelRepoDownloader: NSObject, URLSessionDataDelegate, @unche
         try fileManager.createDirectory(at: parentDir, withIntermediateDirectories: true, attributes: nil)
         try Self.excludeFromBackup(url: parentDir)
 
+        // Recover a fully transferred temporary file left behind if the process ended
+        // between the last network callback and the atomic move.
+        if fileManager.fileExists(atPath: tempURL.path) {
+            let size = ((try? fileManager.attributesOfItem(atPath: tempURL.path)[.size]) as? NSNumber)?.int64Value ?? 0
+            if size == model.expectedBytes {
+                try Self.validateChecksum(fileURL: tempURL, expectedChecksum: model.expectedSHA256)
+                try Self.atomicMove(from: tempURL, to: finalURL, fileManager: fileManager)
+                return finalURL
+            }
+            if size > model.expectedBytes {
+                try fileManager.removeItem(at: tempURL)
+            }
+        }
+
         return try await withCheckedThrowingContinuation { continuation in
             lock.lock()
             if activeDownloads[model.id] != nil {
@@ -368,7 +382,7 @@ public final class ModelRepoDownloader: NSObject, URLSessionDataDelegate, @unche
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Validates that a downloaded file matches the expected byte size (with tolerance for dynamic model revisions).
+    /// Validates that a downloaded file matches the expected byte size.
     public static func validateFileSize(
         fileURL: URL,
         expectedBytes: Int64,
@@ -386,7 +400,8 @@ public final class ModelRepoDownloader: NSObject, URLSessionDataDelegate, @unche
             return
         }
 
-        // For large models (> 500 MB), allow minor Hugging Face revision differences up to toleranceRatio (default 5%)
+        // Optional tolerance is retained for callers validating unpinned artifacts. Production
+        // downloads pass zero because every supported revision is pinned by size and checksum.
         if expectedBytes > 500_000_000 && toleranceRatio > 0 {
             let diff = abs(actualBytes - expectedBytes)
             let maxAllowedDiff = Int64(Double(expectedBytes) * toleranceRatio)
@@ -419,14 +434,9 @@ public final class ModelRepoDownloader: NSObject, URLSessionDataDelegate, @unche
         try excludeFromBackup(url: parentDir)
 
         if fileManager.fileExists(atPath: destinationURL.path) {
-            do {
-                _ = try fileManager.replaceItemAt(destinationURL, withItemAt: sourceURL)
-                try excludeFromBackup(url: destinationURL)
-                return
-            } catch {
-                // Fallback for non-atomic filesystems
-                try? fileManager.removeItem(at: destinationURL)
-            }
+            _ = try fileManager.replaceItemAt(destinationURL, withItemAt: sourceURL)
+            try excludeFromBackup(url: destinationURL)
+            return
         }
         try fileManager.moveItem(at: sourceURL, to: destinationURL)
         try excludeFromBackup(url: destinationURL)
@@ -490,18 +500,24 @@ public final class ModelRepoDownloader: NSObject, URLSessionDataDelegate, @unche
         do {
             if statusCode == 200 {
                 // Fresh download: truncate or recreate temp file
-                fileManager.createFile(atPath: context.temporaryFileURL.path, contents: nil, attributes: nil)
-                context.bytesWritten = 0
-                if httpResponse.expectedContentLength > 0 {
-                    context.totalBytesExpected = httpResponse.expectedContentLength
+                if fileManager.fileExists(atPath: context.temporaryFileURL.path) {
+                    try fileManager.removeItem(at: context.temporaryFileURL)
                 }
+                guard fileManager.createFile(atPath: context.temporaryFileURL.path, contents: nil, attributes: nil) else {
+                    throw DownloaderError.fileSystemError("Unable to create temporary download file")
+                }
+                context.bytesWritten = 0
+                context.totalBytesExpected = context.model.expectedBytes
                 let fh = try FileHandle(forWritingTo: context.temporaryFileURL)
                 context.fileHandle = fh
             } else if statusCode == 206 {
                 // Resumed download: open existing file and seek to end
-                if httpResponse.expectedContentLength > 0 {
-                    context.totalBytesExpected = context.bytesWritten + httpResponse.expectedContentLength
+                let expectedPrefix = "bytes \(context.bytesWritten)-"
+                guard let contentRange = httpResponse.value(forHTTPHeaderField: "Content-Range")?.lowercased(),
+                      contentRange.hasPrefix(expectedPrefix) else {
+                    throw DownloaderError.invalidResponse(statusCode: statusCode, message: "Invalid Content-Range for resumed download")
                 }
+                context.totalBytesExpected = context.model.expectedBytes
                 let fh = try FileHandle(forWritingTo: context.temporaryFileURL)
                 try fh.seekToEnd()
                 context.fileHandle = fh
@@ -604,10 +620,10 @@ public final class ModelRepoDownloader: NSObject, URLSessionDataDelegate, @unche
             try? context.fileHandle?.synchronize()
 
             // 1. Validate file size against totalBytesExpected (or model.expectedBytes as baseline)
-            let targetExpected = context.totalBytesExpected > 0 ? context.totalBytesExpected : context.model.expectedBytes
             try Self.validateFileSize(
                 fileURL: context.temporaryFileURL,
-                expectedBytes: targetExpected,
+                expectedBytes: context.model.expectedBytes,
+                toleranceRatio: 0,
                 fileManager: fileManager
             )
 

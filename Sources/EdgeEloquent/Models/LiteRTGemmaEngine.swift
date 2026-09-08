@@ -8,158 +8,7 @@
 import Foundation
 import OSLog
 
-#if canImport(LiteRTLM)
 import LiteRTLM
-#else
-// MARK: - LiteRTLM Bridge Types
-// High-fidelity definitions matching Google's official LiteRT-LM Swift SDK (v0.16.0).
-// Provides seamless compilation in environments where CLiteRTLM.xcframework is linked or compiled dynamically.
-
-public enum Backend: Sendable, Equatable {
-    case gpu
-    case cpu(threadCount: Int? = nil)
-    
-    public var rawValue: String {
-        switch self {
-        case .gpu: return "gpu"
-        case .cpu(let count):
-            if let count = count { return "cpu:\(count)" }
-            return "cpu"
-        }
-    }
-}
-
-public struct EngineConfig: Sendable {
-    public var modelPath: String
-    public var backend: Backend
-    public var visionBackend: Backend?
-    public var audioBackend: Backend?
-    public var maxNumTokens: Int?
-    public var cacheDir: String?
-    
-    public init(
-        modelPath: String,
-        backend: Backend = .gpu,
-        visionBackend: Backend? = .gpu,
-        audioBackend: Backend? = .cpu(),
-        maxNumTokens: Int? = nil,
-        cacheDir: String? = nil
-    ) {
-        self.modelPath = modelPath
-        self.backend = backend
-        self.visionBackend = visionBackend
-        self.audioBackend = audioBackend
-        self.maxNumTokens = maxNumTokens
-        self.cacheDir = cacheDir
-    }
-}
-
-public enum LiteRTContent: Sendable, Equatable {
-    case text(String)
-    case imageData(Data)
-    case imageFile(String)
-    case audioData(Data)
-    case audioFile(String)
-    case toolResponse(name: String, response: String, id: String)
-    
-    public var textContent: String? {
-        if case .text(let str) = self { return str }
-        return nil
-    }
-}
-
-public struct Message: Sendable {
-    public typealias Content = LiteRTContent
-    public enum Role: String, Sendable {
-        case user
-        case model
-        case system
-    }
-    
-    public var role: Role
-    public var content: [LiteRTContent]
-    
-    public init(role: Role = .user, of contents: LiteRTContent...) {
-        self.role = role
-        self.content = contents
-    }
-    
-    public init(role: Role = .user, content: [LiteRTContent]) {
-        self.role = role
-        self.content = content
-    }
-    
-    public var textContent: String {
-        content.compactMap { $0.textContent }.joined()
-    }
-}
-
-public actor Engine {
-    public let engineConfig: EngineConfig
-    private var isInitialized = false
-    
-    public init(engineConfig: EngineConfig) {
-        self.engineConfig = engineConfig
-    }
-    
-    public func initialize() async throws {
-        // Validate model file exists
-        guard FileManager.default.fileExists(atPath: engineConfig.modelPath) else {
-            throw SpeechModelEngineError.modelFileNotFound(path: engineConfig.modelPath)
-        }
-        self.isInitialized = true
-    }
-    
-    public func terminate() async {
-        self.isInitialized = false
-    }
-}
-
-public actor Conversation {
-    private let engine: Engine
-    private var isCancelled = false
-    
-    public init(engine: Engine) {
-        self.engine = engine
-    }
-    
-    public func cancel() async {
-        self.isCancelled = true
-    }
-    
-    public func sendMessageStream(
-        _ message: Message,
-        extraContext: [String: Any]? = nil
-    ) -> AsyncThrowingStream<Message, Error> {
-        AsyncThrowingStream { continuation in
-            Task {
-                if self.isCancelled {
-                    continuation.finish(throwing: SpeechModelEngineError.cancelled)
-                    return
-                }
-                
-                // Emitting decoded tokens from speech input
-                // In production with CLiteRTLM, this bridges to the native streamCallback
-                let promptDesc = message.textContent
-                let fallbackTokens = [
-                    "Speech ", "transcription ", "stream ", "active. ",
-                    "Prompt: ", promptDesc.isEmpty ? "[Standard]" : promptDesc
-                ]
-                
-                for token in fallbackTokens {
-                    if self.isCancelled {
-                        continuation.finish(throwing: SpeechModelEngineError.cancelled)
-                        return
-                    }
-                    try? await Task.sleep(nanoseconds: 50_000_000) // 50ms token pacing
-                    continuation.yield(Message(role: .model, of: .text(token)))
-                }
-                continuation.finish()
-            }
-        }
-    }
-}
-#endif
 
 // MARK: - LiteRTGemmaEngine Implementation
 
@@ -226,7 +75,7 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         guard _isLoaded, let engine = _engine else {
             throw SpeechModelEngineError.modelNotLoaded
         }
-        let conversation = Conversation(engine: engine)
+        let conversation = try engine.createConversation()
         self._activeConversation = conversation
         return (conversation, engine)
     }
@@ -281,7 +130,10 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         let physicalRam = ProcessInfo.processInfo.physicalMemory
         let physicalRamGb = Int(ceil(Double(physicalRam) / (1024.0 * 1024.0 * 1024.0)))
         if physicalRamGb < modelInfo.minDeviceMemoryInGb {
-            logger.warning("Device RAM (\(physicalRamGb) GB) is below recommended \(self.modelInfo.minDeviceMemoryInGb) GB. Proceeding with initialization.")
+            throw SpeechModelEngineError.insufficientDeviceMemory(
+                requiredGb: modelInfo.minDeviceMemoryInGb,
+                availableGb: physicalRamGb
+            )
         }
         
         // Configure compilation cache
@@ -302,7 +154,7 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         // LLM decoder -> .gpu (Apple Metal Shading Language compute)
         // Audio Conformer -> .cpu() (ARM NEON vectorization)
         // Vision Projector -> .gpu (Metal)
-        let config = EngineConfig(
+        let config = try EngineConfig(
             modelPath: path,
             backend: .gpu,
             visionBackend: modelInfo.supportsVision ? .gpu : nil,
@@ -314,7 +166,9 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         let engine = Engine(engineConfig: config)
         
         do {
-            try await engine.initialize()
+            try await Task.detached(priority: .userInitiated) {
+                try engine.initialize()
+            }.value
             markLoaded(engine: engine)
             logger.info("LiteRT-LM Engine initialized successfully for \(self.modelInfo.name)")
         } catch {
@@ -333,17 +187,11 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         
         // Cancel active conversation
         if let conversation = conversation {
-            await conversation.cancel()
+            try? conversation.cancel()
         }
         
         // Terminate native engine handle
-        if let engine = engine {
-            #if canImport(LiteRTLM)
-            // Native deinit handles litert_lm_engine_delete
-            #else
-            await engine.terminate()
-            #endif
-        }
+        _ = engine // Native deinit releases the LiteRT-LM engine handle.
         
         // Force cooperative yield to allow Darwin VM to collect unmapped pages
         await Task.yield()
@@ -366,7 +214,7 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         }
         
         // Prepare audio content: in-memory or temporary file
-        let audioContent: LiteRTContent
+        let audioContent: Content
         let tempAudioFileURL: URL?
         
         if useAudioFilePassing {
@@ -390,27 +238,25 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         // must strictly PRECEDE the prompt text node in the serialized message:
         // [audioContent, textPrompt]
         let message = Message(
-            role: .user,
-            content: [
+            contents: [
                 audioContent,
                 .text(textInstruction)
-            ]
+            ],
+            role: .user
         )
         
         logger.info("Dispatched multimodal speech inference with \(wavData.count) audio bytes to \(self.modelInfo.name)")
         
-        let rawMessageStream = await conversation.sendMessageStream(message)
+        let rawMessageStream = conversation.sendMessageStream(
+            message,
+            maxOutputTokens: modelInfo.maxOutputTokens
+        )
         
         return AsyncThrowingStream { continuation in
             let streamingTask = Task {
                 do {
                     for try await chunk in rawMessageStream {
-                        #if canImport(LiteRTLM)
-                        // In native LiteRTLM, chunk.description or chunk.content contains the incremental token text
-                        let tokenText = chunk.textContent.isEmpty ? chunk.description : chunk.textContent
-                        #else
-                        let tokenText = chunk.textContent
-                        #endif
+                        let tokenText = chunk.toString
                         
                         if !tokenText.isEmpty {
                             continuation.yield(tokenText)

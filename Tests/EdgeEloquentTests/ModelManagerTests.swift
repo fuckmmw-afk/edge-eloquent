@@ -92,12 +92,10 @@ final class ModelManagerTests: XCTestCase {
     func testSupportedAudioModelsCatalogCompleteness() {
         let models = SupportedAudioModel.allModels
 
-        // Invariant: Exactly the 4 officially supported audio models
-        XCTAssertEqual(models.count, 4)
+        // Public iOS allowlist currently contains the two Gemma 3n audio models.
+        XCTAssertEqual(models.count, 2)
 
         let ids = Set(models.map { $0.name })
-        XCTAssertTrue(ids.contains("Gemma-4-E2B-it"))
-        XCTAssertTrue(ids.contains("Gemma-4-E4B-it"))
         XCTAssertTrue(ids.contains("Gemma-3n-E2B-it"))
         XCTAssertTrue(ids.contains("Gemma-3n-E4B-it"))
 
@@ -113,9 +111,9 @@ final class ModelManagerTests: XCTestCase {
     }
 
     func testModelLookupByIdOrName() {
-        let e2b = SupportedAudioModel.find(byIdOrName: "Gemma-4-E2B-it")
+        let e2b = SupportedAudioModel.find(byIdOrName: "Gemma-3n-E2B-it")
         XCTAssertNotNil(e2b)
-        XCTAssertEqual(e2b?.id, "litert-community/gemma-4-E2B-it-litert-lm")
+        XCTAssertEqual(e2b?.id, "google/gemma-3n-E2B-it-litert-lm")
 
         let g3n = SupportedAudioModel.find(byIdOrName: "google/gemma-3n-E2B-it-litert-lm")
         XCTAssertNotNil(g3n)
@@ -126,18 +124,18 @@ final class ModelManagerTests: XCTestCase {
     }
 
     func testModelResolveURLGeneration() {
-        let model = SupportedAudioModel.gemma4_E2B_it
+        let model = SupportedAudioModel.gemma3n_E2B_it
         let url = model.resolveURL()
 
         XCTAssertEqual(url.host, "huggingface.co")
-        XCTAssertTrue(url.path.contains("litert-community/gemma-4-E2B-it-litert-lm"))
+        XCTAssertTrue(url.path.contains("google/gemma-3n-E2B-it-litert-lm"))
         XCTAssertTrue(url.path.contains("resolve"))
         XCTAssertTrue(url.path.contains(model.commitHash))
-        XCTAssertTrue(url.path.contains("gemma-4-E2B-it.litertlm"))
+        XCTAssertTrue(url.path.contains("gemma-3n-E2B-it-int4.litertlm"))
     }
 
     func testModelFormattedSize() {
-        let model = SupportedAudioModel.gemma4_E2B_it
+        let model = SupportedAudioModel.gemma3n_E2B_it
         let formatted = model.formattedExpectedSize
         XCTAssertFalse(formatted.isEmpty)
         XCTAssertTrue(formatted.contains("GB") || formatted.contains("B"))
@@ -372,7 +370,7 @@ final class ModelManagerTests: XCTestCase {
             userDefaults: testUserDefaults
         )
 
-        XCTAssertEqual(manager.supportedModels.count, 4)
+        XCTAssertEqual(manager.supportedModels.count, 2)
         XCTAssertNil(manager.activeModelId)
         XCTAssertNil(manager.activeModel)
         XCTAssertEqual(manager.downloadedModels.count, 0)
@@ -384,7 +382,7 @@ final class ModelManagerTests: XCTestCase {
 
     @MainActor
     func testModelManagerDetectsDownloadedFiles() throws {
-        let testModel = SupportedAudioModel.gemma4_E2B_it
+        let testModel = SupportedAudioModel.gemma3n_E2B_it
         let manager = ModelManager(
             modelsDirectory: tempDirectoryURL,
             userDefaults: testUserDefaults
@@ -405,14 +403,28 @@ final class ModelManagerTests: XCTestCase {
 
         XCTAssertEqual(manager.state(for: testModel.id), .active) // First ready model automatically activates
         XCTAssertEqual(manager.activeModelId, testModel.id)
-        XCTAssertEqual(manager.activeModel?.name, "Gemma-4-E2B-it")
+        XCTAssertEqual(manager.activeModel?.name, "Gemma-3n-E2B-it")
         XCTAssertEqual(manager.downloadedModels.count, 1)
     }
 
     @MainActor
+    func testModelManagerRejectsTruncatedModelFile() throws {
+        let model = SupportedAudioModel.gemma3n_E2B_it
+        let manager = ModelManager(modelsDirectory: tempDirectoryURL, userDefaults: testUserDefaults)
+        let targetURL = manager.modelFileURL(for: model)
+        try FileManager.default.createDirectory(at: targetURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("partial".utf8).write(to: targetURL)
+
+        manager.refreshModelStates()
+
+        XCTAssertFalse(manager.isModelDownloaded(model))
+        XCTAssertEqual(manager.state(for: model.id), .notDownloaded)
+    }
+
+    @MainActor
     func testSetActiveModelPersistenceInUserDefaults() throws {
-        let model1 = SupportedAudioModel.gemma4_E2B_it
-        let model2 = SupportedAudioModel.gemma3n_E2B_it
+        let model1 = SupportedAudioModel.gemma3n_E2B_it
+        let model2 = SupportedAudioModel.gemma3n_E4B_it
 
         let manager = ModelManager(
             modelsDirectory: tempDirectoryURL,
@@ -459,18 +471,18 @@ final class ModelManagerTests: XCTestCase {
             userDefaults: testUserDefaults
         )
 
-        XCTAssertThrowsError(try manager.setActiveModel(id: SupportedAudioModel.gemma4_E4B_it.id)) { error in
+        XCTAssertThrowsError(try manager.setActiveModel(id: SupportedAudioModel.gemma3n_E4B_it.id)) { error in
             guard case ModelManagerError.modelNotReady(let id) = error else {
                 XCTFail("Expected modelNotReady, got \(error)")
                 return
             }
-            XCTAssertEqual(id, SupportedAudioModel.gemma4_E4B_it.id)
+            XCTAssertEqual(id, SupportedAudioModel.gemma3n_E4B_it.id)
         }
     }
 
     @MainActor
     func testModelDeletionReclaimsSpaceAndResetsState() throws {
-        let model = SupportedAudioModel.gemma4_E2B_it
+        let model = SupportedAudioModel.gemma3n_E2B_it
         let manager = ModelManager(
             modelsDirectory: tempDirectoryURL,
             userDefaults: testUserDefaults

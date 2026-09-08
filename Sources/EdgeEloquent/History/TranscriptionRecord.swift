@@ -16,6 +16,9 @@ public struct TranscriptionRecord: Identifiable, Codable, Equatable, Hashable, S
     /// Timestamp when the transcription was performed.
     public let date: Date
 
+    /// Unmodified text returned by the recognition engine.
+    public var rawTranscript: String
+
     /// The raw transcription text produced by the acoustic/speech-to-text model.
     public var cleanTranscript: String
 
@@ -41,8 +44,8 @@ public struct TranscriptionRecord: Identifiable, Codable, Equatable, Hashable, S
 
     /// Alias for cleanTranscript / raw audio text.
     public var rawText: String {
-        get { cleanTranscript }
-        set { cleanTranscript = newValue }
+        get { rawTranscript }
+        set { rawTranscript = newValue }
     }
 
     /// Alias for finalText when enhanced.
@@ -63,6 +66,7 @@ public struct TranscriptionRecord: Identifiable, Codable, Equatable, Hashable, S
     public init(
         id: UUID = UUID(),
         date: Date = Date(),
+        rawTranscript: String? = nil,
         cleanTranscript: String,
         finalText: String,
         modelUsed: String = "",
@@ -72,6 +76,7 @@ public struct TranscriptionRecord: Identifiable, Codable, Equatable, Hashable, S
     ) {
         self.id = id
         self.date = date
+        self.rawTranscript = rawTranscript ?? cleanTranscript
         self.cleanTranscript = cleanTranscript
         self.finalText = finalText
         self.modelUsed = modelUsed
@@ -95,7 +100,8 @@ public struct TranscriptionRecord: Identifiable, Codable, Equatable, Hashable, S
         self.id = id
         self.date = date
         let raw = !rawText.isEmpty ? rawText : cleanedText
-        self.cleanTranscript = raw
+        self.rawTranscript = raw
+        self.cleanTranscript = !cleanedText.isEmpty ? cleanedText : raw
         let final = enhancedText ?? (!cleanedText.isEmpty ? cleanedText : raw)
         self.finalText = final
         self.modelUsed = modelUsed
@@ -126,5 +132,23 @@ public struct TranscriptionRecord: Identifiable, Codable, Equatable, Hashable, S
             copy.isEnhanced = isEnhanced
         }
         return copy
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, date, rawTranscript, cleanTranscript, finalText, modelUsed
+        case durationSeconds, isEnhanced, enhancementMode
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        date = try container.decode(Date.self, forKey: .date)
+        cleanTranscript = try container.decode(String.self, forKey: .cleanTranscript)
+        rawTranscript = try container.decodeIfPresent(String.self, forKey: .rawTranscript) ?? cleanTranscript
+        finalText = try container.decode(String.self, forKey: .finalText)
+        modelUsed = try container.decode(String.self, forKey: .modelUsed)
+        durationSeconds = try container.decode(Double.self, forKey: .durationSeconds)
+        isEnhanced = try container.decode(Bool.self, forKey: .isEnhanced)
+        enhancementMode = try container.decodeIfPresent(String.self, forKey: .enhancementMode)
     }
 }

@@ -259,7 +259,13 @@ public final class ModelManager: ObservableObject {
     /// Refreshes the available free disk space on the volume holding the models directory.
     public func refreshDiskSpace() {
         do {
-            let values = try modelsDirectory.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+            let values = try modelsDirectory.resourceValues(forKeys: [
+                .volumeAvailableCapacityForImportantUsageKey,
+                .volumeTotalCapacityKey
+            ])
+            if let total = values.volumeTotalCapacity {
+                self.totalDiskSpaceBytes = Int64(total)
+            }
             if let capacity = values.volumeAvailableCapacityForImportantUsage {
                 self.availableDiskSpaceBytes = capacity
             } else {
@@ -278,7 +284,7 @@ public final class ModelManager: ObservableObject {
     public func refreshModelStates() {
         for model in supportedModels {
             let targetPath = localModelArtifactURL(for: model)
-            if fileManager.fileExists(atPath: targetPath.path) {
+            if isModelDownloaded(model) {
                 if activeModelId == model.id {
                     modelStates[model.id] = .active
                 } else {
@@ -310,7 +316,12 @@ public final class ModelManager: ObservableObject {
     /// Checks if a model's weights file exists locally on disk.
     public func isModelDownloaded(_ model: SupportedAudioModel) -> Bool {
         let path = localModelArtifactURL(for: model).path
-        return fileManager.fileExists(atPath: path)
+        guard fileManager.fileExists(atPath: path),
+              let attributes = try? fileManager.attributesOfItem(atPath: path),
+              let size = attributes[.size] as? NSNumber else {
+            return false
+        }
+        return size.int64Value == model.expectedBytes
     }
 
     /// Returns the local destination URL for a given model's `.litertlm` artifact.

@@ -5,7 +5,7 @@ import worker from '../src/index.js';
 describe('Cloudflare Worker - Edge Eloquent Post-Processor', () => {
   const env = {
     ENVIRONMENT: 'test',
-    DEFAULT_MODEL: '@cf/meta/llama-3.3-70b-instruct',
+    DEFAULT_MODEL: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
   };
 
   test('GET /health returns healthy status with strictTextOnly: true', async () => {
@@ -52,6 +52,36 @@ describe('Cloudflare Worker - Edge Eloquent Post-Processor', () => {
     assert.ok(!body.enhancedText.toLowerCase().includes('you know'));
     // Stutter "we we" collapsed
     assert.ok(!body.enhancedText.toLowerCase().includes('we we'));
+  });
+
+  test('ordinary text containing former magic-byte words is accepted', async () => {
+    const request = new Request('http://localhost/api/enhance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'FORM a RIFF with the ID3 team.', enableWebSearch: false }),
+    });
+    const response = await worker.fetch(request, env, {});
+    assert.equal(response.status, 200);
+  });
+
+  test('production refuses enhancement when authentication is not configured', async () => {
+    const request = new Request('https://worker.example/api/enhance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'Valid text' }),
+    });
+    const response = await worker.fetch(request, { ENVIRONMENT: 'production' }, {});
+    assert.equal(response.status, 503);
+  });
+
+  test('unexpected nested fields cannot carry arbitrary binary-shaped data', async () => {
+    const request = new Request('http://localhost/api/enhance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'Valid text', audio: [1, 2, 3, 4] }),
+    });
+    const response = await worker.fetch(request, env, {});
+    assert.equal(response.status, 400);
   });
 
   test('STRICT REJECTION: Non-JSON Content-Type (audio/wav) is rejected with 415', async () => {
@@ -176,7 +206,7 @@ describe('Cloudflare Worker - Edge Eloquent Post-Processor', () => {
     assert.ok(body.enhancedText.includes('\u2022'));
   });
 
-  test('Web search augmentation synthesizes search insights', async () => {
+  test('Web search does not fabricate insights when search is disabled or unavailable', async () => {
     const payload = {
       text: 'When did Google release LiteRT-LM?',
       mode: 'standard',
@@ -191,7 +221,7 @@ describe('Cloudflare Worker - Edge Eloquent Post-Processor', () => {
     assert.equal(response.status, 200);
     const body = await response.json();
     assert.ok(Array.isArray(body.webInsights));
-    assert.ok(body.webInsights.length > 0);
+    assert.equal(body.webInsights.length, 0);
   });
 
   test('Authentication header enforcement when AUTH_BEARER_TOKEN set', async () => {

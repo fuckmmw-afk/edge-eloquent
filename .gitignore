@@ -68,3 +68,4 @@ __pycache__/
 node_modules/
 .wrangler/
 package-lock.json
+!cloudflare-worker/package-lock.json

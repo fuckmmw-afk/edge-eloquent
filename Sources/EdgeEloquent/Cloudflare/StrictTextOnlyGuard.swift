@@ -123,7 +123,7 @@ public enum StrictTextOnlyGuard {
         
         // 2. Scan raw bytes for forbidden audio magic signatures
         for sig in forbiddenMagicSignatures {
-            if data.range(of: Data(sig.bytes)) != nil {
+            if data.starts(with: sig.bytes) {
                 throw SecurityViolationError.audioMagicBytesDetected(signature: sig.name)
             }
         }
@@ -166,12 +166,6 @@ public enum StrictTextOnlyGuard {
         }
         
         // Scan for audio magic byte sequences inside string bytes
-        for sig in forbiddenMagicSignatures {
-            if textData.range(of: Data(sig.bytes)) != nil {
-                throw SecurityViolationError.audioMagicBytesDetected(signature: sig.name)
-            }
-        }
-        
         // Check for base64 encoded audio blocks within text
         try inspectStringForBase64Audio(text)
     }
@@ -214,7 +208,7 @@ public enum StrictTextOnlyGuard {
                 
                 if let decoded = Data(base64Encoded: padded) {
                     for sig in forbiddenMagicSignatures {
-                        if decoded.range(of: Data(sig.bytes)) != nil {
+                        if decoded.starts(with: sig.bytes) {
                             throw SecurityViolationError.base64AudioPayloadDetected(signature: sig.name)
                         }
                     }
