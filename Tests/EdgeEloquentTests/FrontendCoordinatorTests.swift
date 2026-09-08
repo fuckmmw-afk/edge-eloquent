@@ -3,7 +3,6 @@
 import XCTest
 @testable import EdgeEloquent
 
-@MainActor
 final class FrontendCoordinatorTests: XCTestCase {
 
     private var appConfig: AppConfig!
@@ -11,6 +10,7 @@ final class FrontendCoordinatorTests: XCTestCase {
     private var historyStore: TranscriptionHistoryStore!
     private var modelManager: ModelManager!
 
+    @MainActor
     override func setUpWithError() throws {
         super.setUp()
         let uniqueID = UUID().uuidString
@@ -28,6 +28,7 @@ final class FrontendCoordinatorTests: XCTestCase {
         appConfig.resetToDefaults()
     }
 
+    @MainActor
     override func tearDownWithError() throws {
         if let tempDirectoryURL = tempDirectoryURL {
             try? FileManager.default.removeItem(at: tempDirectoryURL)
@@ -37,6 +38,7 @@ final class FrontendCoordinatorTests: XCTestCase {
 
     // MARK: - AppConfig Tests
 
+    @MainActor
     func testAppConfigDefaults() {
         XCTAssertEqual(appConfig.cloudflareWorkerURL, AppConfig.defaultCloudflareURL)
         XCTAssertTrue(appConfig.isLocalCleanupEnabled)
@@ -48,6 +50,7 @@ final class FrontendCoordinatorTests: XCTestCase {
         XCTAssertNotNil(appConfig.resolvedCloudflareURL)
     }
 
+    @MainActor
     func testAppConfigMutationsAndReset() {
         appConfig.cloudflareWorkerURL = "https://custom-worker.example.com/api/enhance"
         appConfig.isLocalCleanupEnabled = false
@@ -71,6 +74,7 @@ final class FrontendCoordinatorTests: XCTestCase {
         XCTAssertEqual(appConfig.enhancementMode, .standard)
     }
 
+    @MainActor
     func testResolvedCloudflareURLValidation() {
         appConfig.cloudflareWorkerURL = "https://valid.endpoint.dev/api/enhance"
         XCTAssertNotNil(appConfig.resolvedCloudflareURL)
@@ -82,6 +86,7 @@ final class FrontendCoordinatorTests: XCTestCase {
 
     // MARK: - DictationCoordinator Lifecycle Tests
 
+    @MainActor
     func testDictationCoordinatorInitialState() {
         let coordinator = DictationCoordinator(
             modelManager: modelManager,
@@ -99,6 +104,7 @@ final class FrontendCoordinatorTests: XCTestCase {
         XCTAssertFalse(coordinator.activeEngineName.isEmpty)
     }
 
+    @MainActor
     func testDictationCoordinatorActiveEngineResolution() {
         let coordinator = DictationCoordinator(
             modelManager: modelManager,
@@ -111,6 +117,7 @@ final class FrontendCoordinatorTests: XCTestCase {
         XCTAssertTrue(coordinator.activeEngineName == "Apple Native Speech" || coordinator.activeEngineName.contains("Gemma"))
     }
 
+    @MainActor
     func testDictationCoordinatorClearResult() {
         let coordinator = DictationCoordinator(
             modelManager: modelManager,
@@ -139,6 +146,7 @@ final class FrontendCoordinatorTests: XCTestCase {
 
     // MARK: - Design System Tokens Tests
 
+    @MainActor
     func testThemeDesignTokens() {
         XCTAssertEqual(Theme.cardCornerRadius, 20)
         XCTAssertEqual(Theme.standardCornerRadius, 14)
@@ -149,6 +157,7 @@ final class FrontendCoordinatorTests: XCTestCase {
 
     // MARK: - Gallery Clean Architecture Verification
 
+    @MainActor
     func testGalleryScopeStrictlyMinimalistDictation() {
         // Assert that the app target strictly provides Dictation, History, Models, and Settings
         // and does NOT expose or link Image Generation, Vision VQA, Video, Chat, Prompt Lab, or Benchmark modules.

@@ -208,7 +208,7 @@ public final class ModelManager: ObservableObject {
     // MARK: - Architectural Assertions
 
     /// Enforces the core rule: No model weights (.bin, .safetensors, .task, .litertlm) can be in the IPA.
-    public static func assertNoBundledWeights(bundle: Bundle = .main) throws {
+    nonisolated public static func assertNoBundledWeights(bundle: Bundle = .main) throws {
         guard let bundlePath = bundle.resourcePath else { return }
         let prohibitedExtensions = ["litertlm", "task", "bin", "safetensors", "tflite", "gguf", "onnx"]
         var detected: [String] = []

@@ -363,6 +363,7 @@ final class ModelManagerTests: XCTestCase {
 
     // MARK: - ModelManager Lifecycle & State Tests
 
+    @MainActor
     func testModelManagerInitialStateAllNotDownloaded() {
         let manager = ModelManager(
             modelsDirectory: tempDirectoryURL,
@@ -379,6 +380,7 @@ final class ModelManagerTests: XCTestCase {
         }
     }
 
+    @MainActor
     func testModelManagerDetectsDownloadedFiles() throws {
         let testModel = SupportedAudioModel.gemma4_E2B_it
         let manager = ModelManager(
@@ -405,6 +407,7 @@ final class ModelManagerTests: XCTestCase {
         XCTAssertEqual(manager.downloadedModels.count, 1)
     }
 
+    @MainActor
     func testSetActiveModelPersistenceInUserDefaults() throws {
         let model1 = SupportedAudioModel.gemma4_E2B_it
         let model2 = SupportedAudioModel.gemma3n_E2B_it
@@ -447,6 +450,7 @@ final class ModelManagerTests: XCTestCase {
         XCTAssertEqual(newManager.state(for: model1.id), .ready)
     }
 
+    @MainActor
     func testSetActiveModelThrowsIfNotDownloaded() {
         let manager = ModelManager(
             modelsDirectory: tempDirectoryURL,
@@ -462,6 +466,7 @@ final class ModelManagerTests: XCTestCase {
         }
     }
 
+    @MainActor
     func testModelDeletionReclaimsSpaceAndResetsState() throws {
         let model = SupportedAudioModel.gemma4_E2B_it
         let manager = ModelManager(
@@ -492,6 +497,7 @@ final class ModelManagerTests: XCTestCase {
         XCTAssertNil(testUserDefaults.string(forKey: ModelManager.activeModelUserDefaultsKey))
     }
 
+    @MainActor
     func testDiskSpaceTrackingMetrics() {
         let manager = ModelManager(
             modelsDirectory: tempDirectoryURL,
