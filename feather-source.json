@@ -18,11 +18,11 @@
       "localizedDescription": "Private iOS dictation powered by the official Google AI Edge LiteRT-LM runtime and iOS-validated Gemma 3n models. Model artifacts are downloaded on demand and verified with SHA-256. Optional cloud text enhancement and web search are disabled by default. Audio never leaves the device.",
       "iconURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/icon.png",
       "tintColor": "4A90E2",
-      "version": "1.0.0",
-      "versionDate": "2026-09-08T00:00:00Z",
+      "version": "1.0.1",
+      "versionDate": "2026-09-08T22:03:08Z",
       "versionDescription": "Initial release with Google AI Edge multi-model dictation, local cleaner, and Cloudflare text enhancer.",
-      "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.0/EdgeEloquent.ipa",
-      "size": 441943,
+      "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.1/EdgeEloquent.ipa",
+      "size": 20994866,
       "screenshotURLs": [
         "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/screenshot1.png",
         "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/screenshot2.png"
@@ -42,6 +42,14 @@
         }
       },
       "versions": [
+        {
+          "version": "1.0.1",
+          "date": "2026-09-08T22:03:08Z",
+          "size": 20994866,
+          "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.1/EdgeEloquent.ipa",
+          "localizedDescription": "Initial release with Google AI Edge multi-model dictation, local cleaner, and Cloudflare text enhancer.",
+          "minOSVersion": "17.0"
+        },
         {
           "version": "1.0.0",
           "date": "2026-09-08T00:00:00Z",
