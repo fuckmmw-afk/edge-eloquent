@@ -31,15 +31,35 @@ public struct TranscriptionRecord: Identifiable, Codable, Equatable, Hashable, S
     /// Indicates whether the transcript underwent an AI enhancement / polishing pass.
     public var isEnhanced: Bool
 
-    /// Creates a new transcription record.
-    /// - Parameters:
-    ///   - id: Unique identifier (defaults to a new UUID).
-    ///   - date: Timestamp (defaults to the current date).
-    ///   - cleanTranscript: Raw transcribed speech text.
-    ///   - finalText: Final polished or edited text.
-    ///   - modelUsed: Model identifier string (optional metadata, defaults to empty string).
-    ///   - durationSeconds: Audio duration in seconds (optional metadata, defaults to 0.0).
-    ///   - isEnhanced: Whether enhancement was applied (defaults to false).
+    /// Optional enhancement mode applied (e.g. "fix_grammar", "bullet_points").
+    public var enhancementMode: String?
+
+    // MARK: - Aliases for Backward & Inter-Module Compatibility
+
+    /// Alias for date.
+    public var createdAt: Date { date }
+
+    /// Alias for cleanTranscript / raw audio text.
+    public var rawText: String {
+        get { cleanTranscript }
+        set { cleanTranscript = newValue }
+    }
+
+    /// Alias for finalText when enhanced.
+    public var enhancedText: String? {
+        get { isEnhanced ? finalText : nil }
+        set {
+            if let val = newValue {
+                finalText = val
+                isEnhanced = true
+            }
+        }
+    }
+
+    /// Alias for displayText.
+    public var primaryDisplayText: String { displayText }
+
+    /// Primary initializer.
     public init(
         id: UUID = UUID(),
         date: Date = Date(),
@@ -47,7 +67,8 @@ public struct TranscriptionRecord: Identifiable, Codable, Equatable, Hashable, S
         finalText: String,
         modelUsed: String = "",
         durationSeconds: Double = 0.0,
-        isEnhanced: Bool = false
+        isEnhanced: Bool = false,
+        enhancementMode: String? = nil
     ) {
         self.id = id
         self.date = date
@@ -56,6 +77,31 @@ public struct TranscriptionRecord: Identifiable, Codable, Equatable, Hashable, S
         self.modelUsed = modelUsed
         self.durationSeconds = durationSeconds
         self.isEnhanced = isEnhanced
+        self.enhancementMode = enhancementMode
+    }
+
+    /// Flexible compatibility initializer supporting rawText / cleanedText / enhancedText named parameters.
+    public init(
+        id: UUID = UUID(),
+        date: Date = Date(),
+        rawText: String = "",
+        cleanedText: String = "",
+        enhancedText: String? = nil,
+        audioDurationSeconds: TimeInterval = 0.0,
+        modelUsed: String = "",
+        tokensCount: Int? = nil,
+        enhancementMode: String? = nil
+    ) {
+        self.id = id
+        self.date = date
+        let raw = !rawText.isEmpty ? rawText : cleanedText
+        self.cleanTranscript = raw
+        let final = enhancedText ?? (!cleanedText.isEmpty ? cleanedText : raw)
+        self.finalText = final
+        self.modelUsed = modelUsed
+        self.durationSeconds = audioDurationSeconds
+        self.isEnhanced = (enhancedText != nil)
+        self.enhancementMode = enhancementMode
     }
 
     // MARK: - Convenience Helpers

@@ -87,6 +87,19 @@ public final class DictationCoordinator: ObservableObject {
         )
     }
 
+    public convenience init(
+        modelManager: ModelManager,
+        historyStore: TranscriptionHistoryStore,
+        appConfig: AppConfig
+    ) {
+        self.init(
+            audioCapture: UnifiedAudioCapture(),
+            modelManager: modelManager,
+            historyStore: historyStore,
+            appConfig: appConfig
+        )
+    }
+
     public init(
         audioCapture: UnifiedAudioCapture,
         modelManager: ModelManager,

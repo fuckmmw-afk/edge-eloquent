@@ -98,7 +98,7 @@ public final class ModelManager: ObservableObject {
     /// The currently active model instance, if one is selected and available.
     public var activeModel: SupportedAudioModel? {
         guard let id = activeModelId else { return nil }
-        return supportedModels.first(where: { bash.id == id })
+        return supportedModels.first(where: { $0.id == id })
     }
 
     /// File URL for the given model on local storage.
@@ -147,7 +147,7 @@ public final class ModelManager: ObservableObject {
 
     /// List of models currently present on disk.
     public var downloadedModels: [SupportedAudioModel] {
-        supportedModels.filter { isModelDownloaded(bash) }
+        supportedModels.filter { isModelDownloaded($0) }
     }
 
     /// Real-time progress trackers for active downloads keyed by model ID.
