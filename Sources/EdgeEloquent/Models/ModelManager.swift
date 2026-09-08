@@ -201,8 +201,8 @@ public final class ModelManager: ObservableObject {
         createModelsDirectoryIfNeeded()
         try? Self.assertNoBundledWeights()
         refreshDiskSpace()
-        refreshModelStates()
         restorePersistedActiveModel()
+        refreshModelStates()
     }
 
     // MARK: - Architectural Assertions
@@ -483,7 +483,6 @@ public final class ModelManager: ObservableObject {
             }
             if let model = supportedModels.first(where: { $0.id == savedId }), isModelDownloaded(model) {
                 activeModelId = savedId
-                modelStates[savedId] = .active
                 return
             }
         }
@@ -491,7 +490,6 @@ public final class ModelManager: ObservableObject {
         // Default activation: check if any supported model is downloaded, activate first ready
         if let firstReady = supportedModels.first(where: { isModelDownloaded($0) }) {
             activeModelId = firstReady.id
-            modelStates[firstReady.id] = .active
         } else {
             activeModelId = nil
         }
