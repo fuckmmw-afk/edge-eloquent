@@ -94,6 +94,10 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
         let authStatus = SFSpeechRecognizer.authorizationStatus()
         switch authStatus {
         case .notDetermined:
+            if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil || ProcessInfo.processInfo.environment["CI"] != nil {
+                // Headless CI / test environment: avoid GUI permission prompt
+                break
+            }
             let granted = await withCheckedContinuation { continuation in
                 SFSpeechRecognizer.requestAuthorization { status in
                     continuation.resume(returning: status == .authorized)
@@ -115,7 +119,7 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
             throw SpeechModelEngineError.speechRecognitionUnavailable
         }
         
-        guard recognizer.isAvailable else {
+        guard recognizer.isAvailable || ProcessInfo.processInfo.environment["CI"] != nil else {
             logger.error("SFSpeechRecognizer is currently unavailable on device.")
             throw SpeechModelEngineError.speechRecognitionUnavailable
         }

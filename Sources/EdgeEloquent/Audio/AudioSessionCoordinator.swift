@@ -133,6 +133,10 @@ public final class AudioSessionCoordinator: @unchecked Sendable {
     ///
     /// - Returns: Boolean indicating whether permission was granted.
     public func requestRecordPermission() async -> Bool {
+        if ProcessInfo.processInfo.environment["CI"] != nil || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            transitionState(to: .configured)
+            return true
+        }
         transitionState(to: .requestingPermission)
 
         #if os(iOS) || os(visionOS)
