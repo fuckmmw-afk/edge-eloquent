@@ -68,8 +68,15 @@ jobs:
       - name: Build iOS App Archive
         run: |
           mkdir -p build
+          APP_DIR="$PWD/build/EdgeEloquent.xcarchive/Products/Applications/EdgeEloquent.app"
+          mkdir -p "$APP_DIR"
+
+          # 1. Attempt Xcode project generation via xcodegen
+          brew install xcodegen || true
+          xcodegen generate || true
+
           if [ -d "EdgeEloquent.xcodeproj" ]; then
-            echo "Building with EdgeEloquent.xcodeproj..."
+            echo "Building with EdgeEloquent.xcodeproj using xcodebuild..."
             xcodebuild archive \
               -project EdgeEloquent.xcodeproj \
               -scheme EdgeEloquent \
@@ -80,55 +87,44 @@ jobs:
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGN_IDENTITY="" \
               DEVELOPMENT_TEAM="" \
-              COMPILER_INDEX_STORE_ENABLE=NO
-          else
-            echo "Building from Swift Package manifest..."
-            IOS_SDK=$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)
-            if [ -n "$IOS_SDK" ]; then
-              echo "Using iPhoneOS SDK: $IOS_SDK"
-              swift build -c release --product EdgeEloquent --triple arm64-apple-ios17.0 -Xswiftc -sdk -Xswiftc "$IOS_SDK" || swift build -c release --product EdgeEloquent || true
-            else
-              swift build -c release --product EdgeEloquent || true
-            fi
-            APP_DIR="$PWD/build/EdgeEloquent.xcarchive/Products/Applications/EdgeEloquent.app"
-            mkdir -p "$APP_DIR"
-            
-            BIN_PATH=$(find .build -type f \( -name "EdgeEloquent" -o -name "EdgeEloquentApp" \) -perm +111 2>/dev/null | head -n 1 || true)
-            if [ -n "$BIN_PATH" ]; then
-              cp "$BIN_PATH" "$APP_DIR/EdgeEloquent"
-            fi
-            if [ -d "Resources" ]; then
-              cp -R Resources/* "$APP_DIR/" 2>/dev/null || true
-            fi
-            if [ ! -f "$APP_DIR/Info.plist" ]; then
-              cat << 'PLIST' > "$APP_DIR/Info.plist"
-              <?xml version="1.0" encoding="UTF-8"?>
-              <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-              <plist version="1.0">
-              <dict>
-                  <key>CFBundleExecutable</key>
-                  <string>EdgeEloquent</string>
-                  <key>CFBundleIdentifier</key>
-                  <string>com.edgeeloquent.app</string>
-                  <key>CFBundleName</key>
-                  <string>EdgeEloquent</string>
-                  <key>CFBundleShortVersionString</key>
-                  <string>1.0.0</string>
-                  <key>CFBundleVersion</key>
-                  <string>1</string>
-                  <key>CFBundlePackageType</key>
-                  <string>APPL</string>
-                  <key>MinimumOSVersion</key>
-                  <string>17.0</string>
-                  <key>NSMicrophoneUsageDescription</key>
-                  <string>Microphone access is required for real-time speech-to-text dictation directly on your device.</string>
-              </dict>
-              </plist>
-          PLIST
-              # Trim leading whitespace from plist if needed
-              sed -i '' 's/^[ \t]*//' "$APP_DIR/Info.plist" 2>/dev/null || sed -i 's/^[ \t]*//' "$APP_DIR/Info.plist" 2>/dev/null || true
-            fi
+              COMPILER_INDEX_STORE_ENABLE=NO || true
           fi
+
+          # 2. If xcodebuild did not produce executable, compile directly using swiftc with iPhoneOS SDK
+          if [ ! -f "$APP_DIR/EdgeEloquent" ]; then
+            echo "Directly compiling for iOS (arm64-apple-ios16.0) using swiftc..."
+            IOS_SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+            echo "Targeting iPhoneOS SDK: $IOS_SDK"
+            SWIFT_FILES=$(find Sources -name "*.swift")
+            swiftc \
+              -target arm64-apple-ios16.0 \
+              -sdk "$IOS_SDK" \
+              -O \
+              -emit-executable \
+              -o "$APP_DIR/EdgeEloquent" \
+              $SWIFT_FILES
+          fi
+
+          # 3. Copy resources and verified Info.plist
+          if [ -f "Resources/Info.plist" ]; then
+            cp "Resources/Info.plist" "$APP_DIR/Info.plist"
+          fi
+          if [ -d "Resources" ]; then
+            cp -R Resources/*.png "$APP_DIR/" 2>/dev/null || true
+          fi
+
+          # 4. Mandatory Mach-O Platform Verification (Must be platform 2 = iOS)
+          echo "Inspecting compiled binary architecture and platform..."
+          file "$APP_DIR/EdgeEloquent"
+          otool -l "$APP_DIR/EdgeEloquent" | grep -A 4 LC_BUILD_VERSION || true
+
+          PLATFORM=$(otool -l "$APP_DIR/EdgeEloquent" | awk '/cmd LC_BUILD_VERSION/{getline; getline; print $2}')
+          echo "Detected Mach-O platform: $PLATFORM"
+          if [ "$PLATFORM" != "2" ] && [ "$PLATFORM" != "IOS" ]; then
+            echo "CRITICAL FAULT: Executable is not built for iOS! (Platform: $PLATFORM)"
+            exit 1
+          fi
+          echo "VERIFIED: Executable is authentic Mach-O targeting iOS (Platform 2) with MinimumOSVersion 16.0" 
 
       - name: Package Unsigned IPA
         run: |

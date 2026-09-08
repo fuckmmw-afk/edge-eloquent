@@ -48,7 +48,7 @@
           "size": 18500000,
           "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.0/EdgeEloquent.ipa",
           "localizedDescription": "Initial release with Google AI Edge multi-model dictation, local cleaner, and Cloudflare text enhancer.",
-          "minOSVersion": "17.0"
+          "minOSVersion": "16.0"
         }
       ]
     }

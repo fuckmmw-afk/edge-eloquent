@@ -7,7 +7,9 @@
 //
 
 import SwiftUI
+#if canImport(EdgeEloquent)
 import EdgeEloquent
+#endif
 
 @main
 struct EdgeEloquentApp: App {
