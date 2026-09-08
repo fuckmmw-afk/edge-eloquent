@@ -44,62 +44,7 @@ public struct ModelManagerView: View {
                     appleNativeSpeechCard
 
                     // LiteRT Audio Models Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("ON-DEVICE GEMMA MODELS")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.secondary)
-                                .tracking(1.0)
-
-                            Spacer()
-
-                            Text("LiteRT-LM Runtime")
-                                .font(.caption2)
-                                .foregroundColor(Theme.edgeBlue)
-                        }
-
-                        ForEach(modelManager.supportedModels) { model in
-                            ModelCardView(
-                                model: model,
-                                state: modelManager.state(for: model.id),
-                                progress: modelManager.downloadProgresses[model.id],
-                                onDownload: {
-                                    Task {
-                                        do {
-                                            let token = appConfig.huggingFaceToken.isEmpty ? nil : appConfig.huggingFaceToken
-                                            try await modelManager.downloadModel(model, bearerToken: token)
-                                        } catch {
-                                            alertMessage = error.localizedDescription
-                                            showAlert = true
-                                        }
-                                    }
-                                },
-                                onPause: {
-                                    modelManager.pauseDownload(modelId: model.id)
-                                },
-                                onCancel: {
-                                    modelManager.cancelDownload(modelId: model.id)
-                                },
-                                onActivate: {
-                                    do {
-                                        try modelManager.setActiveModel(id: model.id)
-                                    } catch {
-                                        alertMessage = error.localizedDescription
-                                        showAlert = true
-                                    }
-                                },
-                                onDelete: {
-                                    do {
-                                        try modelManager.deleteModel(id: model.id)
-                                    } catch {
-                                        alertMessage = error.localizedDescription
-                                        showAlert = true
-                                    }
-                                }
-                            )
-                        }
-                    }
+                    gemmaModelsSection
 
                     // Zero Bundled Weights Architectural Guarantee
                     architecturalGuaranteeCard
@@ -131,6 +76,74 @@ public struct ModelManagerView: View {
                 modelManager.refreshModelStates()
                 modelManager.refreshDiskSpace()
             }
+        }
+    }
+
+
+    // MARK: - Subviews & Actions
+
+    private var gemmaModelsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("ON-DEVICE GEMMA MODELS")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.secondary)
+                    .tracking(1.0)
+
+                Spacer()
+
+                Text("LiteRT-LM Runtime")
+                    .font(.caption2)
+                    .foregroundColor(Theme.edgeBlue)
+            }
+
+            ForEach(modelManager.supportedModels) { model in
+                modelCard(for: model)
+            }
+        }
+    }
+
+    private func modelCard(for model: SupportedAudioModel) -> some View {
+        ModelCardView(
+            model: model,
+            state: modelManager.state(for: model.id),
+            progress: modelManager.downloadProgresses[model.id],
+            onDownload: { handleDownload(model) },
+            onPause: { modelManager.pauseDownload(modelId: model.id) },
+            onCancel: { modelManager.cancelDownload(modelId: model.id) },
+            onActivate: { handleActivate(model) },
+            onDelete: { handleDelete(model) }
+        )
+    }
+
+    private func handleDownload(_ model: SupportedAudioModel) {
+        Task {
+            do {
+                let token = appConfig.huggingFaceToken.isEmpty ? nil : appConfig.huggingFaceToken
+                try await modelManager.downloadModel(model, bearerToken: token)
+            } catch {
+                alertMessage = error.localizedDescription
+                showAlert = true
+            }
+        }
+    }
+
+    private func handleActivate(_ model: SupportedAudioModel) {
+        do {
+            try modelManager.setActiveModel(id: model.id)
+        } catch {
+            alertMessage = error.localizedDescription
+            showAlert = true
+        }
+    }
+
+    private func handleDelete(_ model: SupportedAudioModel) {
+        do {
+            try modelManager.deleteModel(id: model.id)
+        } catch {
+            alertMessage = error.localizedDescription
+            showAlert = true
         }
     }
 

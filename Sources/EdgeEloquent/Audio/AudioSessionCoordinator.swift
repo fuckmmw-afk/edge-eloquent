@@ -66,6 +66,12 @@ public final class AudioSessionCoordinator: @unchecked Sendable {
     /// Weak delegate for audio session events.
     public weak var delegate: AudioSessionCoordinatorDelegate?
 
+    /// Optional callback invoked when an interruption begins.
+    public var onInterruptionBegan: (@Sendable () -> Void)?
+
+    /// Optional callback invoked when an interruption ends.
+    public var onInterruptionEnded: (@Sendable (Bool) -> Void)?
+
     /// Current operational state of the session coordinator.
     public var state: AudioSessionState {
         stateLock.lock()
@@ -277,6 +283,7 @@ public final class AudioSessionCoordinator: @unchecked Sendable {
         case .began:
             transitionState(to: .interrupted)
             delegate?.audioSessionDidReceiveInterruption(self, interruption: .began)
+            onInterruptionBegan?()
 
         case .ended:
             var shouldResume = false
@@ -292,6 +299,7 @@ public final class AudioSessionCoordinator: @unchecked Sendable {
             }
 
             delegate?.audioSessionDidReceiveInterruption(self, interruption: .ended(shouldResume: shouldResume))
+            onInterruptionEnded?(shouldResume)
 
         @unknown default:
             break

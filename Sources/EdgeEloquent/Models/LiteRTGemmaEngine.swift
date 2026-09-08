@@ -54,7 +54,7 @@ public struct EngineConfig: Sendable {
     }
 }
 
-public enum Content: Sendable, Equatable {
+public enum LiteRTContent: Sendable, Equatable {
     case text(String)
     case imageData(Data)
     case imageFile(String)
@@ -69,6 +69,7 @@ public enum Content: Sendable, Equatable {
 }
 
 public struct Message: Sendable {
+    public typealias Content = LiteRTContent
     public enum Role: String, Sendable {
         case user
         case model
@@ -76,14 +77,14 @@ public struct Message: Sendable {
     }
     
     public var role: Role
-    public var content: [Content]
+    public var content: [LiteRTContent]
     
-    public init(role: Role = .user, of contents: Content...) {
+    public init(role: Role = .user, of contents: LiteRTContent...) {
         self.role = role
         self.content = contents
     }
     
-    public init(role: Role = .user, content: [Content]) {
+    public init(role: Role = .user, content: [LiteRTContent]) {
         self.role = role
         self.content = content
     }
@@ -369,7 +370,7 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         }
         
         // Prepare audio content: in-memory or temporary file
-        let audioContent: Message.Content
+        let audioContent: LiteRTContent
         let tempAudioFileURL: URL?
         
         if useAudioFilePassing {

@@ -172,7 +172,7 @@ public final class ModelManager: ObservableObject {
         self.userDefaults = userDefaults
 
         createModelsDirectoryIfNeeded()
-        assertNoBundledWeights()
+        try? Self.assertNoBundledWeights()
         refreshDiskSpace()
         refreshModelStates()
         restorePersistedActiveModel()
@@ -181,7 +181,7 @@ public final class ModelManager: ObservableObject {
     // MARK: - Architectural Assertions
 
     /// Enforces the core rule: No model weights (.bin, .safetensors, .task, .litertlm) can be in the IPA.
-    private func assertNoBundledWeights() {
+    private func try? Self.assertNoBundledWeights() {
         guard let bundlePath = Bundle.main.resourcePath else { return }
         let prohibitedExtensions = ["litertlm", "task", "bin", "safetensors", "tflite"]
 

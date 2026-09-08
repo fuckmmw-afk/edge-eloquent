@@ -190,16 +190,49 @@ public final class UnifiedAudioCapture: @unchecked Sendable {
         }
     }
 
+    // MARK: - Synchronous Lock Helpers
+
+    private func checkIsRunning() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return isRunning
+    }
+
+    private func markRunning() {
+        lock.lock()
+        defer { lock.unlock() }
+        self.isRunning = true
+        self.isPaused = false
+        self.accumulatedSamples.removeAll(keepingCapacity: true)
+        self.lastSpeechTimestamp = Date()
+        self.hasDetectedSpeechInCurrentSlice = false
+    }
+
+    private func prepareStopCapture() -> [Float]? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard isRunning else { return nil }
+        isRunning = false
+        isPaused = false
+        let samples = accumulatedSamples
+        accumulatedSamples.removeAll()
+        return samples
+    }
+
+    private func finishContinuation() {
+        lock.lock()
+        defer { lock.unlock() }
+        chunkStreamContinuation?.finish()
+        chunkStreamContinuation = nil
+    }
+
     // MARK: - Capture Lifecycle Controls
 
     /// Starts audio capture by configuring the session, installing the engine tap, and launching AVAudioEngine.
     public func startCapture() async throws {
-        lock.lock()
-        if isRunning {
-            lock.unlock()
+        if checkIsRunning() {
             return
         }
-        lock.unlock()
 
         // 1. Verify / request permissions
         let granted = await sessionCoordinator.requestRecordPermission()
@@ -214,14 +247,7 @@ public final class UnifiedAudioCapture: @unchecked Sendable {
         // 3. Setup and start audio engine tap
         try setupAudioEngine()
 
-        lock.lock()
-        self.isRunning = true
-        self.isPaused = false
-        self.accumulatedSamples.removeAll(keepingCapacity: true)
-        self.lastSpeechTimestamp = Date()
-        self.hasDetectedSpeechInCurrentSlice = false
-        lock.unlock()
-
+        markRunning()
         sessionCoordinator.markRecording()
     }
 
@@ -231,18 +257,9 @@ public final class UnifiedAudioCapture: @unchecked Sendable {
     /// - Returns: The final emitted AudioChunk, if accumulated samples met the minimum duration threshold.
     @discardableResult
     public func stopCapture() async -> AudioChunk? {
-        lock.lock()
-        guard isRunning else {
-            lock.unlock()
+        guard let remainingSamples = prepareStopCapture() else {
             return nil
         }
-        isRunning = false
-        isPaused = false
-
-        // Flush remaining audio slice
-        let remainingSamples = accumulatedSamples
-        accumulatedSamples.removeAll()
-        lock.unlock()
 
         #if canImport(AVFoundation)
         teardownAudioEngine()
@@ -265,19 +282,11 @@ public final class UnifiedAudioCapture: @unchecked Sendable {
             )
             emitChunk(chunk)
 
-            lock.lock()
-            chunkStreamContinuation?.finish()
-            chunkStreamContinuation = nil
-            lock.unlock()
-
+            finishContinuation()
             return chunk
         }
 
-        lock.lock()
-        chunkStreamContinuation?.finish()
-        chunkStreamContinuation = nil
-        lock.unlock()
-
+        finishContinuation()
         return nil
     }
 
@@ -311,12 +320,9 @@ public final class UnifiedAudioCapture: @unchecked Sendable {
     /// Handles hardware route changes (such as AirPods connection or disconnection)
     /// by safely rebuilding the audio engine graph and converter.
     public func handleAudioRouteChanged() async {
-        lock.lock()
-        guard isRunning else {
-            lock.unlock()
+        guard checkIsRunning() else {
             return
         }
-        lock.unlock()
 
         #if canImport(AVFoundation)
         // Safely reconfigure engine with new hardware input format

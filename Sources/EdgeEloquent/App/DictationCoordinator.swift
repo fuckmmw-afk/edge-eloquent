@@ -231,7 +231,7 @@ public final class DictationCoordinator: ObservableObject {
 
         state = .processing(stage: .transcribing)
 
-        Task {
+        Task { [self] in
             // 1. Terminate audio capture (UnifiedAudioCapture.stopCapture flushes any remaining chunk to chunkStream and finishes it)
             _ = await audioCapture.stopCapture()
 
