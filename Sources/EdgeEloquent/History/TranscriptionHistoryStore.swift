@@ -81,6 +81,34 @@ public final class TranscriptionHistoryStore: ObservableObject {
         loadRecords()
     }
 
+    public convenience init(
+        fileURL: URL,
+        fileManager: FileManager = .default
+    ) {
+        self.init(destinationURL: fileURL, fileManager: fileManager)
+    }
+
+    public static func read(from url: URL) -> [TranscriptionRecord] {
+        guard let data = try? Data(contentsOf: url),
+              let decoded = try? JSONDecoder().decode([TranscriptionRecord].self, from: data) else {
+            return []
+        }
+        return decoded
+    }
+
+    public func listRecords() -> [TranscriptionRecord] {
+        records
+    }
+
+    public func getRecord(id: UUID) -> TranscriptionRecord? {
+        record(withId: id)
+    }
+
+    public func deleteRecords(ids: [UUID]) {
+        records.removeAll(where: { ids.contains($0.id) })
+        persistAllRecordsImmediately()
+    }
+
     // MARK: - Directory Management
 
     private func createDirectoryIfNeeded() {

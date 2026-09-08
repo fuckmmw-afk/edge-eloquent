@@ -212,4 +212,15 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
     public static var defaultModel: SupportedAudioModel {
         gemma4_E2B_it
     }
+
+    /// Searches predefined models by id, name, or repository slug.
+    public static func find(byIdOrName query: String) -> SupportedAudioModel? {
+        let q = query.lowercased()
+        return allPredefined.first { model in
+            model.id.lowercased() == q ||
+            model.name.lowercased() == q ||
+            model.hfRepo.lowercased() == q ||
+            model.filename.lowercased() == q
+        }
+    }
 }

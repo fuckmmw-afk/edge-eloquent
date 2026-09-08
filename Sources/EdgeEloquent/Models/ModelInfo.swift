@@ -164,6 +164,14 @@ extension ModelInfo {
         let safeModelId = modelId.replacingOccurrences(of: "/", with: "_")
         return "models/\(safeModelId)/\(commitHash)/\(modelFile)"
     }
+
+    /// Whether the model binary is already locally cached.
+    public var isLocallyCached: Bool {
+        guard !isSystemProvided else { return false }
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        let target = appSupport?.appendingPathComponent(localRelativePath)
+        return target.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+    }
     
     /// Checks if a device with the given physical memory satisfies the model's memory requirements.
     public func isDeviceCompatible(deviceMemoryInGb: Int) -> Bool {

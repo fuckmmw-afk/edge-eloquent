@@ -3,7 +3,6 @@
 import XCTest
 @testable import EdgeEloquent
 
-@MainActor
 final class HistoryStoreTests: XCTestCase {
 
     private var tempDirectoryURL: URL!

@@ -10,6 +10,12 @@ final class MockModelURLProtocol: URLProtocol, @unchecked Sendable {
     static let lock = NSLock()
     static var requestHandler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
 
+    static func setHandler(_ handler: @escaping (URLRequest) throws -> (HTTPURLResponse, Data)) {
+        lock.withLock {
+            requestHandler = handler
+        }
+    }
+
     override class func canInit(with request: URLRequest) -> Bool {
         return true
     }
@@ -19,9 +25,9 @@ final class MockModelURLProtocol: URLProtocol, @unchecked Sendable {
     }
 
     override func startLoading() {
-        MockModelURLProtocol.lock.lock()
-        let handler = MockModelURLProtocol.requestHandler
-        MockModelURLProtocol.lock.unlock()
+        let handler = MockModelURLProtocol.lock.withLock {
+            MockModelURLProtocol.requestHandler
+        }
 
         guard let handler = handler else {
             client?.urlProtocol(self, didFailWithError: URLError(.badURL))
@@ -43,7 +49,6 @@ final class MockModelURLProtocol: URLProtocol, @unchecked Sendable {
 
 // MARK: - ModelManagerTests Suite
 
-@MainActor
 final class ModelManagerTests: XCTestCase {
 
     private var tempDirectoryURL: URL!
@@ -338,8 +343,7 @@ final class ModelManagerTests: XCTestCase {
         config.protocolClasses = [MockModelURLProtocol.self]
         let mockSession = URLSession(configuration: config)
 
-        MockModelURLProtocol.lock.lock()
-        MockModelURLProtocol.requestHandler = { request in
+        MockModelURLProtocol.setHandler { request in
             let response = HTTPURLResponse(
                 url: request.url!,
                 statusCode: 200,
@@ -348,7 +352,6 @@ final class ModelManagerTests: XCTestCase {
             )!
             return (response, jsonResponse.data(using: .utf8)!)
         }
-        MockModelURLProtocol.lock.unlock()
 
         let service = HuggingFaceSearchService(session: mockSession)
         let report = try await service.fetchAndVerifyModel(modelId: modelId)

@@ -9,6 +9,7 @@ public enum ModelManagerError: LocalizedError, Equatable {
     case insufficientDiskSpace(requiredBytes: Int64, availableBytes: Int64)
     case modelNotReady(String)
     case activationFailed(String)
+    case bundledWeightsDetected([String])
     case bundledWeightsProhibited
 
     public var errorDescription: String? {
@@ -23,6 +24,8 @@ public enum ModelManagerError: LocalizedError, Equatable {
             return "Model '\(id)' is not downloaded or ready for activation."
         case .activationFailed(let reason):
             return "Failed to activate model: \(reason)"
+        case .bundledWeightsDetected(let files):
+            return "CRITICAL ARCHITECTURE VIOLATION: Model weights were found bundled in application bundle: \(files.joined(separator: ", ")). Edge Eloquent enforces zero-bundled weights."
         case .bundledWeightsProhibited:
             return "CRITICAL ARCHITECTURE VIOLATION: Model weights were found bundled in application bundle. Edge Eloquent enforces zero-bundled weights."
         }
@@ -205,18 +208,37 @@ public final class ModelManager: ObservableObject {
     // MARK: - Architectural Assertions
 
     /// Enforces the core rule: No model weights (.bin, .safetensors, .task, .litertlm) can be in the IPA.
-    public static func assertNoBundledWeights() throws {
-        guard let bundlePath = Bundle.main.resourcePath else { return }
-        let prohibitedExtensions = ["litertlm", "task", "bin", "safetensors", "tflite"]
+    public static func assertNoBundledWeights(bundle: Bundle = .main) throws {
+        guard let bundlePath = bundle.resourcePath else { return }
+        let prohibitedExtensions = ["litertlm", "task", "bin", "safetensors", "tflite", "gguf", "onnx"]
+        var detected: [String] = []
 
         if let enumerator = FileManager.default.enumerator(atPath: bundlePath) {
             for case let file as String in enumerator {
                 let ext = (file as NSString).pathExtension.lowercased()
                 if prohibitedExtensions.contains(ext) {
-                    fatalError("[CRITICAL] Bundled model weights found at: \(file). Zero-bundled weights rule violated!")
+                    detected.append(file)
                 }
             }
         }
+        if !detected.isEmpty {
+            throw ModelManagerError.bundledWeightsDetected(detected)
+        }
+    }
+
+    public func modelSizeOnDisk(for modelId: String) -> Int64? {
+        guard let model = supportedModels.first(where: { $0.id == modelId }) else { return nil }
+        let path = localModelArtifactURL(for: model).path
+        guard fileManager.fileExists(atPath: path),
+              let attrs = try? fileManager.attributesOfItem(atPath: path),
+              let size = attrs[.size] as? Int64 else {
+            return nil
+        }
+        return size
+    }
+
+    public var totalStorageFormatted: String {
+        totalDiskSpaceFormatted
     }
 
     private func createModelsDirectoryIfNeeded() {
