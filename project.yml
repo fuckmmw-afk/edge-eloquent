@@ -24,8 +24,6 @@ targets:
       - path: Resources
         excludes:
           - "Info.plist"
-    info:
-      path: Resources/Info.plist
     settings:
       base:
         PRODUCT_NAME: "EdgeEloquent"

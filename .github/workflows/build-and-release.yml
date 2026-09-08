@@ -71,6 +71,9 @@ jobs:
           APP_DIR="$PWD/build/EdgeEloquent.xcarchive/Products/Applications/EdgeEloquent.app"
           mkdir -p "$APP_DIR"
 
+          # 0. Cache canonical handcrafted Info.plist
+          cp Resources/Info.plist /tmp/Canonical_Info.plist
+
           # 1. Attempt Xcode project generation via xcodegen
           brew install xcodegen || true
           xcodegen generate || true
@@ -105,15 +108,7 @@ jobs:
               $SWIFT_FILES
           fi
 
-          # 3. Copy resources and verified Info.plist
-          if [ -f "Resources/Info.plist" ]; then
-            cp "Resources/Info.plist" "$APP_DIR/Info.plist"
-          fi
-          if [ -d "Resources" ]; then
-            cp -R Resources/*.png "$APP_DIR/" 2>/dev/null || true
-          fi
-
-          # 4. Mandatory Mach-O Platform Verification (Must be platform 2 = iOS)
+          # 3. Mandatory Mach-O Platform Verification (Must be platform 2 = iOS)
           echo "Inspecting compiled binary architecture and platform..."
           file "$APP_DIR/EdgeEloquent"
           otool -l "$APP_DIR/EdgeEloquent" | grep -A 4 LC_BUILD_VERSION || true
@@ -124,19 +119,52 @@ jobs:
             echo "CRITICAL FAULT: Executable is not built for iOS! (Platform: $PLATFORM)"
             exit 1
           fi
-          echo "VERIFIED: Executable is authentic Mach-O targeting iOS (Platform 2) with MinimumOSVersion 16.0" 
+          echo "VERIFIED: Executable is authentic Mach-O targeting iOS (Platform 2) with MinimumOSVersion 16.0"
 
       - name: Package Unsigned IPA
         run: |
           rm -rf Payload EdgeEloquent.ipa
           mkdir -p Payload
-          APP_SOURCE=$(find build -type d -name "EdgeEloquent.app" | head -n 1)
+          APP_SOURCE=$(find build/EdgeEloquent.xcarchive/Products/Applications -type d -name "EdgeEloquent.app" 2>/dev/null | head -n 1 || find build -type d -name "EdgeEloquent.app" | head -n 1)
           if [ -z "$APP_SOURCE" ]; then
             echo "ERROR: EdgeEloquent.app not found in build output!"
             exit 1
           fi
           echo "Packaging application bundle from: $APP_SOURCE"
           cp -R "$APP_SOURCE" Payload/
+          
+          # Overwrite with canonical concrete Info.plist
+          if [ -f "/tmp/Canonical_Info.plist" ]; then
+            cp "/tmp/Canonical_Info.plist" "Payload/EdgeEloquent.app/Info.plist"
+          else
+            cp "Resources/Info.plist" "Payload/EdgeEloquent.app/Info.plist"
+          fi
+          cp -R Resources/*.png "Payload/EdgeEloquent.app/" 2>/dev/null || true
+          
+          # Convert to standard XML plist format
+          plutil -convert xml1 "Payload/EdgeEloquent.app/Info.plist"
+
+          # Strict assertion: Ensure no Xcode variable tokens remain
+          if grep -E '\$\((PRODUCT|DEVELOPMENT|EXECUTABLE)' "Payload/EdgeEloquent.app/Info.plist"; then
+            echo "CRITICAL FAULT: Unresolved variable placeholders detected in Payload/EdgeEloquent.app/Info.plist!"
+            exit 1
+          fi
+
+          echo "=== AUDITING FINAL INFO.PLIST METADATA ==="
+          python3 -c '
+import plistlib
+p = plistlib.load(open("Payload/EdgeEloquent.app/Info.plist", "rb"))
+assert p.get("CFBundleIdentifier") == "com.edgeeloquent.app", f"Invalid bundle id: {p.get("CFBundleIdentifier")}"
+assert p.get("CFBundleName") == "EdgeEloquent", f"Invalid name: {p.get("CFBundleName")}"
+assert p.get("CFBundleShortVersionString") == "1.0.0", f"Invalid version: {p.get("CFBundleShortVersionString")}"
+print("BUNDLE METADATA VALIDATED:")
+print("  CFBundleName:", p.get("CFBundleName"))
+print("  CFBundleDisplayName:", p.get("CFBundleDisplayName"))
+print("  CFBundleIdentifier:", p.get("CFBundleIdentifier"))
+print("  CFBundleShortVersionString:", p.get("CFBundleShortVersionString"))
+print("  MinimumOSVersion:", p.get("MinimumOSVersion"))
+'
+
           zip -qr -9 EdgeEloquent.ipa Payload
           echo "Created EdgeEloquent.ipa: $(du -sh EdgeEloquent.ipa | cut -f1)"
 
@@ -219,7 +247,7 @@ jobs:
                       "size": size,
                       "downloadURL": download_url,
                       "localizedDescription": app.get("versionDescription", f"Release {version}"),
-                      "minOSVersion": "17.0"
+                      "minOSVersion": "16.0"
                   })
               else:
                   for v in versions:
