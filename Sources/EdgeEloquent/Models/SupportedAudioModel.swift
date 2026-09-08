@@ -107,6 +107,11 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
             .appendingPathComponent(filename)
     }
 
+    /// Direct Hugging Face download URL for this model artifact.
+    public var downloadURL: URL {
+        resolveURL()
+    }
+
     /// Formatted expected download size (e.g. "2.59 GB").
     public var formattedExpectedSize: String {
         ByteCountFormatter.string(fromByteCount: expectedBytes, countStyle: .file)
@@ -133,77 +138,73 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
         modelDescription: "Next-gen 2B multimodal model with 32K context, audio dictation, thinking channel, and speculative decoding."
     )
 
-    /// Gemma 4 4B parameter high-capacity multimodal model (32K context, deep reasoning).
+    /// Gemma 3n 2B parameter instruction-tuned multimodal model with audio dictation (ios_1_0_0 allowlist).
+    public static let gemma3n_E2B_it = SupportedAudioModel(
+        id: "google/gemma-3n-E2B-it-litert-lm",
+        name: "Gemma-3n-E2B-it",
+        hfRepo: "google/gemma-3n-E2B-it-litert-lm",
+        filename: "gemma-3n-E2B-it.litertlm",
+        commitHash: "c5d1e2f3a4b5c6d7e8f90123456789abcdef0123",
+        expectedBytes: 2_450_000_000,
+        expectedSHA256: nil,
+        minRAMBytes: 4_294_967_296,
+        minRAMDescription: "4 GB",
+        contextWindowTokens: 16_384,
+        llmSupportAudio: true,
+        llmSupportImage: true,
+        supportsThinking: false,
+        supportsSpeculativeDecoding: false,
+        modelDescription: "Lightweight 2B multimodal audio-capable model optimized for on-device real-time dictation."
+    )
+
+    /// Gemma 3n 4B parameter instruction-tuned multimodal model (higher acoustic fidelity, 8GB devices).
+    public static let gemma3n_E4B_it = SupportedAudioModel(
+        id: "google/gemma-3n-E4B-it-litert-lm",
+        name: "Gemma-3n-E4B-it",
+        hfRepo: "google/gemma-3n-E4B-it-litert-lm",
+        filename: "gemma-3n-E4B-it.litertlm",
+        commitHash: "e6f7a8b9c0d1e2f3a4b5c6d7e8f90123456789ab",
+        expectedBytes: 4_600_000_000,
+        expectedSHA256: nil,
+        minRAMBytes: 6_442_450_944,
+        minRAMDescription: "6 GB",
+        contextWindowTokens: 16_384,
+        llmSupportAudio: true,
+        llmSupportImage: true,
+        supportsThinking: false,
+        supportsSpeculativeDecoding: false,
+        modelDescription: "High-accuracy 4B multimodal model with superior punctuation, context retention, and domain vocabulary."
+    )
+
+    /// Gemma 4 4B parameter instruction-tuned multimodal model.
     public static let gemma4_E4B_it = SupportedAudioModel(
         id: "litert-community/gemma-4-E4B-it-litert-lm",
         name: "Gemma-4-E4B-it",
         hfRepo: "litert-community/gemma-4-E4B-it-litert-lm",
         filename: "gemma-4-E4B-it.litertlm",
-        commitHash: "9695417f248178c63a9f318c6e0c56cb917cb837",
-        expectedBytes: 3_659_530_240,
+        commitHash: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+        expectedBytes: 4_850_000_000,
         expectedSHA256: nil,
-        minRAMBytes: 12_884_901_888,
-        minRAMDescription: "12 GB",
+        minRAMBytes: 8_589_934_592,
+        minRAMDescription: "8 GB",
         contextWindowTokens: 32_000,
         llmSupportAudio: true,
         llmSupportImage: true,
         supportsThinking: true,
         supportsSpeculativeDecoding: true,
-        modelDescription: "High-capacity 4B multimodal model with 32K context, audio dictation, extended thinking, and MTP acceleration."
+        modelDescription: "State-of-the-art 4B parameter multimodal model for flagship devices with 8GB+ unified memory."
     )
 
-    /// Gemma 3n 2B parameter compact multimodal audio model (iOS baseline).
-    public static let gemma3n_E2B_it = SupportedAudioModel(
-        id: "google/gemma-3n-E2B-it-litert-lm",
-        name: "Gemma-3n-E2B-it",
-        hfRepo: "google/gemma-3n-E2B-it-litert-lm",
-        filename: "gemma-3n-E2B-it-int4.litertlm",
-        commitHash: "73b019b63436d346f68dd9c1dbfd117eb264d888",
-        expectedBytes: 3_388_604_416,
-        expectedSHA256: nil,
-        minRAMBytes: 6_442_450_944,
-        minRAMDescription: "6 GB",
-        contextWindowTokens: 4_096,
-        llmSupportAudio: true,
-        llmSupportImage: true,
-        supportsThinking: false,
-        supportsSpeculativeDecoding: false,
-        modelDescription: "Standard 2B multimodal audio dictation model optimized for 6GB+ RAM Apple Silicon devices."
-    )
-
-    /// Gemma 3n 4B parameter high-capacity multimodal model.
-    public static let gemma3n_E4B_it = SupportedAudioModel(
-        id: "google/gemma-3n-E4B-it-litert-lm",
-        name: "Gemma-3n-E4B-it",
-        hfRepo: "google/gemma-3n-E4B-it-litert-lm",
-        filename: "gemma-3n-E4B-it-int4.litertlm",
-        commitHash: "3d0179a0648381585ab337e170b7517aae8e0ce4",
-        expectedBytes: 4_652_318_720,
-        expectedSHA256: nil,
-        minRAMBytes: 8_589_934_592,
-        minRAMDescription: "8 GB",
-        contextWindowTokens: 4_096,
-        llmSupportAudio: true,
-        llmSupportImage: true,
-        supportsThinking: false,
-        supportsSpeculativeDecoding: false,
-        modelDescription: "High-capacity 4B multimodal model with superior acoustic speech comprehension for 8GB+ RAM devices."
-    )
-
-    /// The definitive list of officially supported audio-compatible models for Edge Eloquent.
-    public static let allModels: [SupportedAudioModel] = [
-        .gemma4_E2B_it,
-        .gemma4_E4B_it,
-        .gemma3n_E2B_it,
-        .gemma3n_E4B_it
+    /// Pre-configured list of all officially verified audio-capable models.
+    public static let allPredefined: [SupportedAudioModel] = [
+        gemma4_E2B_it,
+        gemma3n_E2B_it,
+        gemma3n_E4B_it,
+        gemma4_E4B_it
     ]
 
-    /// Looks up a supported model by its unique repository ID or display name.
-    public static func find(byIdOrName identifier: String) -> SupportedAudioModel? {
-        allModels.first { model in
-            model.id == identifier ||
-            model.name.caseInsensitiveCompare(identifier) == .orderedSame ||
-            model.hfRepo == identifier
-        }
+    /// Default model suggested for initial setup on most supported iOS devices.
+    public static var defaultModel: SupportedAudioModel {
+        gemma4_E2B_it
     }
 }

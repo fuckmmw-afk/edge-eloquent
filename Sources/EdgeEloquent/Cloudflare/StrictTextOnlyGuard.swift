@@ -134,7 +134,7 @@ public enum StrictTextOnlyGuard {
         }
         
         // 4. Strict UTF-8 Decodability Assertion
-        guard let utf8String = String(data: data, encoding: .utf8) else {
+        guard String(data: data, encoding: .utf8) != nil else {
             throw SecurityViolationError.nonUTF8BinaryDataDetected
         }
         

@@ -194,6 +194,42 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         return _isLoaded
     }
     
+    private func checkIsLoaded() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _isLoaded
+    }
+    
+    private func markLoaded(engine: Engine) {
+        lock.lock()
+        defer { lock.unlock() }
+        self._engine = engine
+        self._isLoaded = true
+    }
+    
+    private func prepareUnload() -> (Conversation?, Engine?)? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard _isLoaded else { return nil }
+        let conversation = _activeConversation
+        let engine = _engine
+        self._activeConversation = nil
+        self._engine = nil
+        self._isLoaded = false
+        return (conversation, engine)
+    }
+    
+    private func prepareConversation() throws -> (Conversation, Engine) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard _isLoaded, let engine = _engine else {
+            throw SpeechModelEngineError.modelNotLoaded
+        }
+        let conversation = Conversation(engine: engine)
+        self._activeConversation = conversation
+        return (conversation, engine)
+    }
+    
     /// Resolved path to the `.litertlm` file on device.
     public var resolvedModelPath: String {
         if let custom = customModelPath {
@@ -208,7 +244,7 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
     ///
     /// - Parameters:
     ///   - modelInfo: Specification of the target Gemma model (e.g. `ModelInfo.gemma4_E2B`).
-    ///   - modelPath: Optional explicit path to the `.litertlm` file. Defaults to Application Support sandbox.\
+    ///   - modelPath: Optional explicit path to the `.litertlm` file. Defaults to Application Support sandbox.
     ///   - cacheDirectory: Optional cache directory for Metal pipelines. Defaults to Caches/LiteRTCache.
     ///   - useAudioFilePassing: Whether to serialize audio to a temporary file (`Content.audioFile`) instead of memory (`Content.audioData`).
     public init(
@@ -227,13 +263,10 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
     
     /// Asynchronously initializes LiteRT-LM engine, maps weights via POSIX mmap, and compiles Metal shaders.
     public func load() async throws {
-        lock.lock()
-        if _isLoaded {
-            lock.unlock()
+        if checkIsLoaded() {
             logger.warning("Engine for \(self.modelInfo.name) is already loaded.")
             return
         }
-        lock.unlock()
         
         let path = resolvedModelPath
         logger.info("Verifying model artifact at path: \(path)")
@@ -285,12 +318,7 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         
         do {
             try await engine.initialize()
-            
-            lock.lock()
-            self._engine = engine
-            self._isLoaded = true
-            lock.unlock()
-            
+            markLoaded(engine: engine)
             logger.info("LiteRT-LM Engine initialized successfully for \(self.modelInfo.name)")
         } catch {
             logger.error("Failed to initialize LiteRT-LM Engine: \(error.localizedDescription)")
@@ -300,17 +328,9 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
     
     /// Unloads the engine, invalidates conversations, releases Metal pipelines, and yields for VM page reclamation.
     public func unload() async {
-        lock.lock()
-        guard _isLoaded else {
-            lock.unlock()
+        guard let (conversation, engine) = prepareUnload() else {
             return
         }
-        let conversation = _activeConversation
-        let engine = _engine
-        self._activeConversation = nil
-        self._engine = nil
-        self._isLoaded = false
-        lock.unlock()
         
         logger.info("Unloading LiteRT-LM engine for \(self.modelInfo.name)...")
         
@@ -341,16 +361,7 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         wavData: Data,
         prompt: String?
     ) async throws -> AsyncThrowingStream<String, Error> {
-        lock.lock()
-        guard _isLoaded, let engine = _engine else {
-            lock.unlock()
-            throw SpeechModelEngineError.modelNotLoaded
-        }
-        
-        // Instantiate fresh conversation context for this audio slice
-        let conversation = Conversation(engine: engine)
-        self._activeConversation = conversation
-        lock.unlock()
+        let (conversation, _) = try prepareConversation()
         
         // Validate minimum audio size (at least 44 bytes header + audio payload)
         guard wavData.count > 44 else {
@@ -391,7 +402,7 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         
         logger.info("Dispatched multimodal speech inference with \(wavData.count) audio bytes to \(self.modelInfo.name)")
         
-        let rawMessageStream = conversation.sendMessageStream(message)
+        let rawMessageStream = await conversation.sendMessageStream(message)
         
         return AsyncThrowingStream { continuation in
             let streamingTask = Task {

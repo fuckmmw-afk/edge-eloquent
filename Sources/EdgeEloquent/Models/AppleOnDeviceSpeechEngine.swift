@@ -7,22 +7,16 @@
 
 import Foundation
 import OSLog
-
 #if canImport(Speech)
 import Speech
-import AVFoundation
 #endif
 
-/// Zero-download fallback speech transcription engine using Apple's native Speech framework (`SFSpeechRecognizer`).
-/// Requires 0 MB of downloaded model weights and operates with ultra-low RAM footprint.
-/// Strictly enforces the Audio Air-Gap Invariant by mandating `requiresOnDeviceRecognition = true`.
+/// Lightweight zero-download speech recognition engine utilizing Apple's built-in on-device Speech framework (`SFSpeechRecognizer`).
+/// Serves as the immediate out-of-the-box fallback before any large `.litertlm` models are downloaded from Hugging Face.
 public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Sendable {
     private let logger = Logger(subsystem: "com.edgeeloquent.engine", category: "AppleOnDeviceSpeechEngine")
     
-    /// Model metadata representing the native platform speech recognizer.
     public let modelInfo: ModelInfo
-    
-    /// Target locale for speech recognition (defaults to current system locale).
     public let locale: Locale
     
     private let lock = NSLock()
@@ -37,6 +31,40 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
         lock.lock()
         defer { lock.unlock() }
         return _isLoaded
+    }
+    
+    private func checkIsLoaded() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _isLoaded
+    }
+    
+    private func markLoaded(#if canImport(Speech) recognizer: SFSpeechRecognizer #endif) {
+        lock.lock()
+        defer { lock.unlock() }
+        #if canImport(Speech)
+        self.speechRecognizer = recognizer
+        #endif
+        self._isLoaded = true
+    }
+    
+    private func markLoadedFallback() {
+        lock.lock()
+        defer { lock.unlock() }
+        self._isLoaded = true
+    }
+    
+    private func prepareUnload() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard _isLoaded else { return false }
+        #if canImport(Speech)
+        activeTask?.cancel()
+        activeTask = nil
+        speechRecognizer = nil
+        #endif
+        _isLoaded = false
+        return true
     }
     
     /// Designated Initializer
@@ -55,12 +83,9 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
     
     /// Pre-warms the native Apple speech recognition subsystem and validates permissions.
     public func load() async throws {
-        lock.lock()
-        if _isLoaded {
-            lock.unlock()
+        if checkIsLoaded() {
             return
         }
-        lock.unlock()
         
         logger.info("Initializing AppleOnDeviceSpeechEngine for locale \(self.locale.identifier)...")
         
@@ -102,37 +127,20 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
             }
         }
         
-        lock.lock()
-        self.speechRecognizer = recognizer
-        self._isLoaded = true
-        lock.unlock()
-        
+        markLoaded(recognizer: recognizer)
         logger.info("AppleOnDeviceSpeechEngine loaded successfully.")
         #else
         // Non-Apple platform fallback simulation
-        lock.lock()
-        self._isLoaded = true
-        lock.unlock()
+        markLoadedFallback()
         logger.info("AppleOnDeviceSpeechEngine loaded (simulation mode).")
         #endif
     }
     
     /// Unloads the engine and terminates any active recognition tasks.
     public func unload() async {
-        lock.lock()
-        guard _isLoaded else {
-            lock.unlock()
+        guard prepareUnload() else {
             return
         }
-        
-        #if canImport(Speech)
-        activeTask?.cancel()
-        activeTask = nil
-        speechRecognizer = nil
-        #endif
-        
-        _isLoaded = false
-        lock.unlock()
         
         await Task.yield()
         logger.info("AppleOnDeviceSpeechEngine unloaded.")
@@ -146,12 +154,9 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
         wavData: Data,
         prompt: String?
     ) async throws -> AsyncThrowingStream<String, Error> {
-        lock.lock()
-        guard _isLoaded else {
-            lock.unlock()
+        guard checkIsLoaded() else {
             throw SpeechModelEngineError.modelNotLoaded
         }
-        lock.unlock()
         
         guard wavData.count > 44 else {
             throw SpeechModelEngineError.invalidAudioFormat(reason: "WAV buffer too small (\(wavData.count) bytes).")
@@ -163,46 +168,34 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
         let tempWavURL = tempDir.appendingPathComponent("\(UUID().uuidString).wav")
         try wavData.write(to: tempWavURL)
         
+        #if canImport(Speech)
+        guard let recognizer = self.speechRecognizer else {
+            throw SpeechModelEngineError.speechRecognitionUnavailable
+        }
+        
+        let request = SFSpeechURLRecognitionRequest(url: tempWavURL)
+        request.shouldReportPartialResults = true
+        request.requiresOnDeviceRecognition = true
+        
         return AsyncThrowingStream { continuation in
-            #if canImport(Speech)
-            guard let recognizer = self.speechRecognizer else {
-                continuation.finish(throwing: SpeechModelEngineError.modelNotLoaded)
-                try? FileManager.default.removeItem(at: tempWavURL)
-                return
-            }
-            
-            let request = SFSpeechURLRecognitionRequest(url: tempWavURL)
-            
-            // STRICT PRIVACY INVARIANT: Mandate on-device recognition
-            if #available(iOS 13.0, macOS 10.15, *) {
-                request.requiresOnDeviceRecognition = true
-            }
-            
-            // Real-time incremental reporting
-            request.shouldReportPartialResults = true
-            
-            // Apply contextual prompt strings if supplied
-            if let prompt = prompt, !prompt.isEmpty {
-                request.contextualStrings = prompt.components(separatedBy: .whitespacesAndNewlines)
-            }
-            
-            var previousTextLength = 0
+            var lastReportedText = ""
             
             let task = recognizer.recognitionTask(with: request) { result, error in
                 if let error = error {
                     try? FileManager.default.removeItem(at: tempWavURL)
-                    continuation.finish(throwing: SpeechModelEngineError.transcriptionFailed(reason: error.localizedDescription))
+                    continuation.finish(throwing: error)
                     return
                 }
                 
                 guard let result = result else { return }
+                let currentBest = result.bestTranscription.formattedString
                 
-                let currentFullText = result.bestTranscription.formattedString
-                if currentFullText.count > previousTextLength {
-                    let startIndex = currentFullText.index(currentFullText.startIndex, offsetBy: previousTextLength)
-                    let newChunk = String(currentFullText[startIndex...])
-                    continuation.yield(newChunk)
-                    previousTextLength = currentFullText.count
+                // Yield incremental delta between recognitions
+                if currentBest.count > lastReportedText.count {
+                    let deltaIndex = currentBest.index(currentBest.startIndex, offsetBy: lastReportedText.count)
+                    let newTokens = String(currentBest[deltaIndex...])
+                    lastReportedText = currentBest
+                    continuation.yield(newTokens)
                 }
                 
                 if result.isFinal {
@@ -211,24 +204,21 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
                 }
             }
             
-            self.lock.lock()
-            self.activeTask = task
-            self.lock.unlock()
-            
             continuation.onTermination = { @Sendable _ in
                 task.cancel()
                 try? FileManager.default.removeItem(at: tempWavURL)
             }
-            #else
-            // Fallback mock stream for non-Apple compilation environments
+        }
+        #else
+        // Fallback simulation for non-Apple test runners
+        return AsyncThrowingStream { continuation in
             Task {
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                continuation.yield("Native Apple speech transcription ")
-                continuation.yield("completed on-device.")
+                try? await Task.sleep(nanoseconds: 60_000_000)
+                continuation.yield("Native on-device recognition active.")
                 try? FileManager.default.removeItem(at: tempWavURL)
                 continuation.finish()
             }
-            #endif
         }
+        #endif
     }
 }
