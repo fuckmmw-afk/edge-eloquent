@@ -10,6 +10,10 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
+        .executable(
+            name: "EdgeEloquent",
+            targets: ["EdgeEloquentApp"]
+        ),
         .library(
             name: "EdgeEloquent",
             targets: ["EdgeEloquent"]
@@ -21,6 +25,11 @@ let package = Package(
             name: "EdgeEloquent",
             dependencies: [],
             path: "Sources/EdgeEloquent"
+        ),
+        .executableTarget(
+            name: "EdgeEloquentApp",
+            dependencies: ["EdgeEloquent"],
+            path: "Sources/EdgeEloquentApp"
         ),
         .testTarget(
             name: "EdgeEloquentTests",

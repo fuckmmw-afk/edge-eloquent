@@ -83,11 +83,17 @@ jobs:
               COMPILER_INDEX_STORE_ENABLE=NO
           else
             echo "Building from Swift Package manifest..."
-            swift build -c release --triple arm64-apple-ios17.0 || swift build -c release
+            IOS_SDK=$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)
+            if [ -n "$IOS_SDK" ]; then
+              echo "Using iPhoneOS SDK: $IOS_SDK"
+              swift build -c release --product EdgeEloquent --triple arm64-apple-ios17.0 -Xswiftc -sdk -Xswiftc "$IOS_SDK" || swift build -c release --product EdgeEloquent || true
+            else
+              swift build -c release --product EdgeEloquent || true
+            fi
             APP_DIR="$PWD/build/EdgeEloquent.xcarchive/Products/Applications/EdgeEloquent.app"
             mkdir -p "$APP_DIR"
             
-            BIN_PATH=$(find .build -type f -name "EdgeEloquent" -perm +111 2>/dev/null | head -n 1 || true)
+            BIN_PATH=$(find .build -type f \( -name "EdgeEloquent" -o -name "EdgeEloquentApp" \) -perm +111 2>/dev/null | head -n 1 || true)
             if [ -n "$BIN_PATH" ]; then
               cp "$BIN_PATH" "$APP_DIR/EdgeEloquent"
             fi

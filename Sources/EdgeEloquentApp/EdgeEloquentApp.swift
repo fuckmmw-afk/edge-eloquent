@@ -7,11 +7,12 @@
 //
 
 import SwiftUI
+import EdgeEloquent
 
 @main
-public struct EdgeEloquentApp: App {
+struct EdgeEloquentApp: App {
 
-    public init() {
+    init() {
         // Assert Zero Bundled Weights invariant on application launch
         do {
             try ModelManager.assertNoBundledWeights()
@@ -20,7 +21,7 @@ public struct EdgeEloquentApp: App {
         }
     }
 
-    public var body: some Scene {
+    var body: some Scene {
         WindowGroup {
             ContentView()
         }
