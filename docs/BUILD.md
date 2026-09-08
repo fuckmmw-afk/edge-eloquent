@@ -235,7 +235,7 @@ The resulting unsigned `EdgeEloquent.ipa` can be installed across all major iOS 
 
 > [!TIP]
 > **Feather Direct Repository Addition:**  
-> Users running Feather can add Edge Eloquent directly by opening `feather://source/https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/feather-source.json`. Feather will automatically download the IPA, apply the user's certificate, and manage updates.
+> Users running Feather can add Edge Eloquent directly by opening `feather://source/https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/refs/heads/main/feather-source.json`. Feather will automatically download the IPA, apply the user's certificate, and manage updates.
 
 ---
 

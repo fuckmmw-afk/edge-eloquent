@@ -20,7 +20,7 @@ When a user adds `feather-source.json` to Feather:
 |                                FEATHER CLIENT (iOS)                               |
 |                                                                                   |
 |   1. User adds Source URL:                                                        |
-|      https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/             |
+|      https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/refs/heads/main/  |
 |      feather-source.json                                                          |
 |                                                                                   |
 |   2. Feather fetches JSON index periodically or on pull-to-refresh               |
@@ -31,14 +31,14 @@ When a user adds `feather-source.json` to Feather:
 |                        GITHUB REPOSITORY (HEAD / MAIN)                            |
 |                        feather-source.json                                        |
 |   - Bundle ID: com.edgeeloquent.app                                               |
-|   - Version: 1.0.0                                                                |
+|   - Version: 1.0.1                                                                |
 |   - Download URL -> GitHub Releases Assets (EdgeEloquent.ipa)                     |
 +----------------------------------------+------------------------------------------+
                                          | User taps "INSTALL" in Feather
                                          v
 +-----------------------------------------------------------------------------------+
 |                        GITHUB RELEASES (CDN / STORAGE)                            |
-|                        v1.0.0 / EdgeEloquent.ipa                                  |
+|                        v1.0.1 / EdgeEloquent.ipa                                  |
 |   - Direct HTTPS download of the signed / sign-ready binary                       |
 |   - Feather re-signs with user's certificate/profile and installs directly         |
 +-----------------------------------------------------------------------------------+
@@ -210,12 +210,12 @@ Feather supports the AltStore 1.x and 2.0 dual-compatible JSON format. To maximi
 If you are reading this on an iOS device with Feather installed, tap the deep link below:
 
 ```text
-feather://source/https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/feather-source.json
+feather://source/https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/refs/heads/main/feather-source.json
 ```
 
 Or for AltStore / SideStore:
 ```text
-altstore://source?url=https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/feather-source.json
+altstore://source?url=https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/refs/heads/main/feather-source.json
 ```
 
 ---
@@ -224,7 +224,7 @@ altstore://source?url=https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquen
 
 1. **Copy the Source URL:**
    ```
-   https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/feather-source.json
+   https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/refs/heads/main/feather-source.json
    ```
 2. **Open Feather:** Launch the **Feather** app on your iPhone or iPad.
 3. **Navigate to Sources:** Tap the **Sources** tab located on the navigation bar.

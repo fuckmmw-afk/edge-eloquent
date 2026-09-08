@@ -271,7 +271,7 @@ jobs:
             ## Edge Eloquent ${{ github.ref_name }}
             
             ### 📱 Sideload Installation
-            - **Feather / AltStore**: Add repository source `https://raw.githubusercontent.com/${{ github.repository }}/main/feather-source.json` or download `EdgeEloquent.ipa` directly.
+            - **Feather / AltStore**: Add repository source `https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/main/feather-source.json` or download `EdgeEloquent.ipa` directly.
             - **TrollStore / Sideloadly**: Directly import and install `EdgeEloquent.ipa`.
             
             ### 🔒 Privacy & Architecture Notes

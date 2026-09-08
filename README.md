@@ -19,8 +19,8 @@ Edge Eloquent distributes signed and sign-ready `.ipa` builds directly through *
 
 | Client | One-Tap Direct Import Link |
 | :--- | :--- |
-| **Feather** | [📲 Add Source to Feather](feather://source/https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/feather-source.json) |
-| **AltStore** | [📲 Add Source to AltStore](altstore://source?url=https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/feather-source.json) |
+| **Feather** | [📲 Add Source to Feather](feather://source/https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/refs/heads/main/feather-source.json) |
+| **AltStore** | [📲 Add Source to AltStore](altstore://source?url=https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/refs/heads/main/feather-source.json) |
 
 ---
 
@@ -28,7 +28,7 @@ Edge Eloquent distributes signed and sign-ready `.ipa` builds directly through *
 
 1. Copy the raw source URL:
    ```text
-   https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/feather-source.json
+   https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/refs/heads/main/feather-source.json
    ```
 2. Open **Feather** on your iOS device.
 3. Tap **Sources** in the navigation bar.
