@@ -333,6 +333,8 @@ public final class AudioSessionCoordinator: @unchecked Sendable {
             reason = .routeConfigurationChange
         case .unknown:
             reason = .unknown
+        case .noSuitableRouteForCategory:
+            reason = .unknown
         @unknown default:
             reason = .unknown
         }

@@ -52,10 +52,10 @@ public struct RealtimeTranscriptView: View {
                 .padding(Theme.standardPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .onChange(of: partialText) { _, _ in
+            .onChange(of: partialText) { _ in
                 scrollToBottom(proxy: proxy)
             }
-            .onChange(of: finalizedText) { _, _ in
+            .onChange(of: finalizedText) { _ in
                 scrollToBottom(proxy: proxy)
             }
         }
@@ -67,10 +67,16 @@ public struct RealtimeTranscriptView: View {
 
     private var emptyPlaceholderView: some View {
         VStack(spacing: 12) {
-            Image(systemName: isRecording ? "waveform.badge.mic" : "mic.circle")
-                .font(.system(size: 44, weight: .light))
-                .foregroundColor(isRecording ? Theme.recordingRed : .secondary.opacity(0.6))
-                .symbolEffect(.pulse, isActive: isRecording)
+            if #available(iOS 17.0, macOS 14.0, *) {
+                Image(systemName: isRecording ? "waveform.badge.mic" : "mic.circle")
+                    .font(.system(size: 44, weight: .light))
+                    .foregroundColor(isRecording ? Theme.recordingRed : .secondary.opacity(0.6))
+                    .symbolEffect(.pulse, isActive: isRecording)
+            } else {
+                Image(systemName: isRecording ? "waveform.badge.mic" : "mic.circle")
+                    .font(.system(size: 44, weight: .light))
+                    .foregroundColor(isRecording ? Theme.recordingRed : .secondary.opacity(0.6))
+            }
 
             Text(isRecording ? "Listening for speech..." : placeholder)
                 .font(.subheadline)
