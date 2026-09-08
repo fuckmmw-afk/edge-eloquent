@@ -283,7 +283,6 @@ public final class ModelManager: ObservableObject {
     /// Scans the models directory and updates `modelStates` according to file existence and integrity.
     public func refreshModelStates() {
         for model in supportedModels {
-            let targetPath = localModelArtifactURL(for: model)
             if isModelDownloaded(model) {
                 if activeModelId == model.id {
                     modelStates[model.id] = .active

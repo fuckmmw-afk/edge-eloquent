@@ -69,15 +69,31 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         return (conversation, engine)
     }
     
-    private func prepareConversation() throws -> (Conversation, Engine) {
+    private func loadedEngine() throws -> Engine {
         lock.lock()
         defer { lock.unlock() }
         guard _isLoaded, let engine = _engine else {
             throw SpeechModelEngineError.modelNotLoaded
         }
-        let conversation = try engine.createConversation()
-        self._activeConversation = conversation
-        return (conversation, engine)
+        return engine
+    }
+
+    private func registerConversation(_ conversation: Conversation, for engine: Engine) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard _isLoaded, _engine === engine else { return false }
+        _activeConversation = conversation
+        return true
+    }
+
+    private func prepareConversation() async throws -> Conversation {
+        let engine = try loadedEngine()
+        let conversation = try await engine.createConversation()
+        guard registerConversation(conversation, for: engine) else {
+            try? conversation.cancel()
+            throw SpeechModelEngineError.modelNotLoaded
+        }
+        return conversation
     }
     
     /// Resolved path to the `.litertlm` file on device.
@@ -166,9 +182,7 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         let engine = Engine(engineConfig: config)
         
         do {
-            try await Task.detached(priority: .userInitiated) {
-                try engine.initialize()
-            }.value
+            try await engine.initialize()
             markLoaded(engine: engine)
             logger.info("LiteRT-LM Engine initialized successfully for \(self.modelInfo.name)")
         } catch {
@@ -206,7 +220,7 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         wavData: Data,
         prompt: String?
     ) async throws -> AsyncThrowingStream<String, Error> {
-        let (conversation, _) = try prepareConversation()
+        let conversation = try await prepareConversation()
         
         // Validate minimum audio size (at least 44 bytes header + audio payload)
         guard wavData.count > 44 else {

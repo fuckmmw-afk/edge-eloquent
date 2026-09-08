@@ -161,11 +161,6 @@ public enum StrictTextOnlyGuard {
     
     /// Inspects a raw text string for hidden binary, audio fragments, or base64 audio blocks.
     public static func validateTextOnly(_ text: String) throws {
-        guard let textData = text.data(using: .utf8) else {
-            throw SecurityViolationError.nonUTF8BinaryDataDetected
-        }
-        
-        // Scan for audio magic byte sequences inside string bytes
         // Check for base64 encoded audio blocks within text
         try inspectStringForBase64Audio(text)
     }

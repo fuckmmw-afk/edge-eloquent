@@ -218,7 +218,9 @@ public final class ModelRepoDownloader: NSObject, URLSessionDataDelegate, @unche
         if fileManager.fileExists(atPath: tempURL.path) {
             let size = ((try? fileManager.attributesOfItem(atPath: tempURL.path)[.size]) as? NSNumber)?.int64Value ?? 0
             if size == model.expectedBytes {
-                try Self.validateChecksum(fileURL: tempURL, expectedChecksum: model.expectedSHA256)
+                if let expectedChecksum = model.expectedSHA256 {
+                    try Self.validateChecksum(fileURL: tempURL, expectedChecksum: expectedChecksum)
+                }
                 try Self.atomicMove(from: tempURL, to: finalURL, fileManager: fileManager)
                 return finalURL
             }

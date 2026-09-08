@@ -52,10 +52,10 @@ public struct RealtimeTranscriptView: View {
                 .padding(Theme.standardPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .onChange(of: partialText) { _ in
+            .onChange(of: partialText) {
                 scrollToBottom(proxy: proxy)
             }
-            .onChange(of: finalizedText) { _ in
+            .onChange(of: finalizedText) {
                 scrollToBottom(proxy: proxy)
             }
         }
