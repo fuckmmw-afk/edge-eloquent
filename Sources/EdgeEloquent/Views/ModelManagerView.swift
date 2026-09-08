@@ -53,6 +53,7 @@ public struct ModelManagerView: View {
             }
             .background(Theme.surfaceBackground)
             .navigationTitle("Model Manager")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -64,6 +65,18 @@ public struct ModelManagerView: View {
                     }
                 }
             }
+            #else
+            .toolbar {
+                ToolbarItem {
+                    Button {
+                        showingTokenSheet = true
+                    } label: {
+                        Image(systemName: "key.fill")
+                            .font(.subheadline)
+                    }
+                }
+            }
+            #endif
             .sheet(isPresented: $showingTokenSheet) {
                 hfTokenSheet
             }

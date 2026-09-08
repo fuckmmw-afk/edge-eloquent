@@ -140,10 +140,23 @@ public final class ModelManager: ObservableObject {
     }
 
     /// Real-time progress trackers for active downloads keyed by model ID.
-    @Published public private(set) var downloadProgresses: [String: Progress] = [:]
+    @Published public private(set) var downloadProgresses: [String: DownloadProgress] = [:]
 
     /// Last encountered error message for user-facing alerts.
     @Published public var lastErrorMessage: String? = nil
+
+    /// Returns the current state of a model given its identifier.
+    public func state(for modelId: String) -> ModelState {
+        modelStates[modelId] ?? .notDownloaded
+    }
+
+    /// Deletes an on-device model given its identifier.
+    public func deleteModel(id modelId: String) throws {
+        guard let model = supportedModels.first(where: { $0.id == modelId }) else {
+            throw ModelManagerError.modelNotFound(modelId)
+        }
+        try deleteModel(model)
+    }
 
     // MARK: - Dependencies
 
@@ -181,11 +194,11 @@ public final class ModelManager: ObservableObject {
     // MARK: - Architectural Assertions
 
     /// Enforces the core rule: No model weights (.bin, .safetensors, .task, .litertlm) can be in the IPA.
-    private func try? Self.assertNoBundledWeights() {
+    public static func assertNoBundledWeights() throws {
         guard let bundlePath = Bundle.main.resourcePath else { return }
         let prohibitedExtensions = ["litertlm", "task", "bin", "safetensors", "tflite"]
 
-        if let enumerator = fileManager.enumerator(atPath: bundlePath) {
+        if let enumerator = FileManager.default.enumerator(atPath: bundlePath) {
             for case let file as String in enumerator {
                 let ext = (file as NSString).pathExtension.lowercased()
                 if prohibitedExtensions.contains(ext) {
