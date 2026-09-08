@@ -18,10 +18,10 @@ permissions:
 jobs:
   test:
     name: Test Suite & Security Assertions
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -54,10 +54,10 @@ jobs:
   build-and-package:
     name: Build & Package Unsigned IPA
     needs: [test]
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -186,7 +186,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download IPA Artifact
         uses: actions/download-artifact@v4

@@ -11,7 +11,7 @@ let package = Package(
     ],
     products: [
         .executable(
-            name: "EdgeEloquent",
+            name: "EdgeEloquentApp",
             targets: ["EdgeEloquentApp"]
         ),
         .library(
