@@ -127,6 +127,10 @@ public enum StrictTextOnlyGuard {
                 throw SecurityViolationError.audioMagicBytesDetected(signature: sig.name)
             }
         }
+        // ISO Base Media File Format places `ftyp` after its four-byte box size.
+        if data.count >= 8, Array(data[4..<8]) == [0x66, 0x74, 0x79, 0x70] {
+            throw SecurityViolationError.audioMagicBytesDetected(signature: "ftyp (M4A/MP4/AAC)")
+        }
         
         // 3. Scan for raw binary null bytes (0x00 is invalid in text JSON payloads)
         if data.contains(0x00) {
@@ -161,6 +165,9 @@ public enum StrictTextOnlyGuard {
     
     /// Inspects a raw text string for hidden binary, audio fragments, or base64 audio blocks.
     public static func validateTextOnly(_ text: String) throws {
+        if text.unicodeScalars.contains(where: { $0.value == 0 }) {
+            throw SecurityViolationError.binaryNullBytesDetected
+        }
         // Check for base64 encoded audio blocks within text
         try inspectStringForBase64Audio(text)
     }

@@ -42,12 +42,12 @@ final class FrontendCoordinatorTests: XCTestCase {
     func testAppConfigDefaults() {
         XCTAssertEqual(appConfig.cloudflareWorkerURL, AppConfig.defaultCloudflareURL)
         XCTAssertTrue(appConfig.isLocalCleanupEnabled)
-        XCTAssertTrue(appConfig.isCloudflareEnhancementEnabled)
+        XCTAssertFalse(appConfig.isCloudflareEnhancementEnabled)
         XCTAssertEqual(appConfig.enhancementMode, .standard)
-        XCTAssertTrue(appConfig.enableWebSearch)
+        XCTAssertFalse(appConfig.enableWebSearch)
         XCTAssertEqual(appConfig.requestTimeout, AppConfig.defaultTimeout)
         XCTAssertFalse(appConfig.autoCopyToClipboard)
-        XCTAssertNotNil(appConfig.resolvedCloudflareURL)
+        XCTAssertNil(appConfig.resolvedCloudflareURL)
     }
 
     @MainActor
@@ -70,7 +70,7 @@ final class FrontendCoordinatorTests: XCTestCase {
 
         XCTAssertEqual(appConfig.cloudflareWorkerURL, AppConfig.defaultCloudflareURL)
         XCTAssertTrue(appConfig.isLocalCleanupEnabled)
-        XCTAssertTrue(appConfig.isCloudflareEnhancementEnabled)
+        XCTAssertFalse(appConfig.isCloudflareEnhancementEnabled)
         XCTAssertEqual(appConfig.enhancementMode, .standard)
     }
 

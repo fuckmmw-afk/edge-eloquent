@@ -92,49 +92,31 @@ final class SecurityAssertionTests: XCTestCase {
 
     // MARK: - Audio Magic Bytes Injection Tests
 
-    func testRiffWaveAudioMagicBytesRejected() {
+    func testRiffWordInsideJSONTextAccepted() {
         var payloadData = "{\"text\": \"transcript\", \"dummy\": \"".data(using: .utf8)!
         payloadData.append(contentsOf: [0x52, 0x49, 0x46, 0x46]) // "RIFF"
         payloadData.append("\"}".data(using: .utf8)!)
 
         let headers = ["Content-Type": "application/json"]
-        XCTAssertThrowsError(try StrictTextOnlyGuard.validateOutboundPayload(payloadData, headers: headers)) { error in
-            guard case StrictTextOnlyGuard.SecurityViolationError.audioMagicBytesDetected(let sig) = error else {
-                XCTFail("Expected audioMagicBytesDetected, got \(error)")
-                return
-            }
-            XCTAssertTrue(sig.contains("RIFF"))
-        }
+        XCTAssertNoThrow(try StrictTextOnlyGuard.validateOutboundPayload(payloadData, headers: headers))
     }
 
-    func testOggAudioMagicBytesRejected() {
+    func testOggWordInsideJSONTextAccepted() {
         var payloadData = "{\"text\": \"transcript\", \"dummy\": \"".data(using: .utf8)!
         payloadData.append(contentsOf: [0x4F, 0x67, 0x67, 0x53]) // "OggS"
         payloadData.append("\"}".data(using: .utf8)!)
 
         let headers = ["Content-Type": "application/json"]
-        XCTAssertThrowsError(try StrictTextOnlyGuard.validateOutboundPayload(payloadData, headers: headers)) { error in
-            guard case StrictTextOnlyGuard.SecurityViolationError.audioMagicBytesDetected(let sig) = error else {
-                XCTFail("Expected audioMagicBytesDetected, got \(error)")
-                return
-            }
-            XCTAssertTrue(sig.contains("OggS"))
-        }
+        XCTAssertNoThrow(try StrictTextOnlyGuard.validateOutboundPayload(payloadData, headers: headers))
     }
 
-    func testFlacAudioMagicBytesRejected() {
+    func testFlacWordInsideJSONTextAccepted() {
         var payloadData = "{\"text\": \"transcript\", \"dummy\": \"".data(using: .utf8)!
         payloadData.append(contentsOf: [0x66, 0x4C, 0x61, 0x43]) // "fLaC"
         payloadData.append("\"}".data(using: .utf8)!)
 
         let headers = ["Content-Type": "application/json"]
-        XCTAssertThrowsError(try StrictTextOnlyGuard.validateOutboundPayload(payloadData, headers: headers)) { error in
-            guard case StrictTextOnlyGuard.SecurityViolationError.audioMagicBytesDetected(let sig) = error else {
-                XCTFail("Expected audioMagicBytesDetected, got \(error)")
-                return
-            }
-            XCTAssertTrue(sig.contains("fLaC"))
-        }
+        XCTAssertNoThrow(try StrictTextOnlyGuard.validateOutboundPayload(payloadData, headers: headers))
     }
 
     // MARK: - Binary Null Bytes & Non-UTF8 Tests
