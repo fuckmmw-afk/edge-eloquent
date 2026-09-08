@@ -88,7 +88,7 @@ public final class TranscriptionHistoryStore: ObservableObject {
         self.init(destinationURL: fileURL, fileManager: fileManager)
     }
 
-    public static func read(from url: URL) -> [TranscriptionRecord] {
+    nonisolated public static func read(from url: URL) -> [TranscriptionRecord] {
         guard let data = try? Data(contentsOf: url),
               let decoded = try? JSONDecoder().decode([TranscriptionRecord].self, from: data) else {
             return []

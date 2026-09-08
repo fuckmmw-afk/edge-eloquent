@@ -8,6 +8,7 @@ final class HistoryStoreTests: XCTestCase {
     private var tempDirectoryURL: URL!
     private var testFileURL: URL!
 
+    @MainActor
     override func setUpWithError() throws {
         super.setUp()
         // Create an isolated temporary test directory for each test
@@ -18,6 +19,7 @@ final class HistoryStoreTests: XCTestCase {
         testFileURL = tempDirectoryURL.appendingPathComponent("transcription_history.json")
     }
 
+    @MainActor
     override func tearDownWithError() throws {
         if let tempDirectoryURL = tempDirectoryURL {
             try? FileManager.default.removeItem(at: tempDirectoryURL)
@@ -27,6 +29,7 @@ final class HistoryStoreTests: XCTestCase {
 
     // MARK: - Helper Methods
 
+    @MainActor
     private func makeStore() -> TranscriptionHistoryStore {
         return TranscriptionHistoryStore(fileURL: testFileURL)
     }
@@ -53,6 +56,7 @@ final class HistoryStoreTests: XCTestCase {
 
     // MARK: - TranscriptionRecord Model Tests
 
+    @MainActor
     func testRecordInitializationAndDefaults() {
         let record = TranscriptionRecord(
             cleanTranscript: "Raw transcript",
@@ -67,6 +71,7 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertFalse(record.isEnhanced)
     }
 
+    @MainActor
     func testRecordCustomInitialization() {
         let fixedID = UUID()
         let fixedDate = Date(timeIntervalSince1970: 1_700_000_000)
@@ -89,6 +94,7 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertTrue(record.isEnhanced)
     }
 
+    @MainActor
     func testRecordConvenienceHelpers() {
         let r1 = sampleRecord(duration: 0.0)
         XCTAssertEqual(r1.durationLabel, "0s")
@@ -116,6 +122,7 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(updated.id, rEmptyFinal.id)
     }
 
+    @MainActor
     func testRecordCodableRoundTrip() throws {
         let originalDate = Date(timeIntervalSince1970: 1_700_000_000)
         let original = sampleRecord(date: originalDate)
@@ -141,6 +148,7 @@ final class HistoryStoreTests: XCTestCase {
 
     // MARK: - History Store Tests
 
+    @MainActor
     func testInitialStateIsEmptyWhenNoFileExists() {
         let store = makeStore()
         XCTAssertTrue(store.records.isEmpty)
@@ -149,6 +157,7 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: testFileURL.path))
     }
 
+    @MainActor
     func testSaveRecordPersistsToMemoryAndDisk() {
         let store = makeStore()
         let record = sampleRecord()
@@ -167,6 +176,7 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(diskRecords.first?.id, record.id)
     }
 
+    @MainActor
     func testSaveRecordOrdersNewestFirst() {
         let store = makeStore()
         let record1 = sampleRecord(clean: "First")
@@ -184,6 +194,7 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(diskRecords.map(\.cleanTranscript), ["Third", "Second", "First"])
     }
 
+    @MainActor
     func testSaveRecordUpdatesExistingRecordInPlace() {
         let store = makeStore()
         let id = UUID()
@@ -209,6 +220,7 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(diskRecords.first(where: { $0.id == id })?.finalText, "Polished")
     }
 
+    @MainActor
     func testPersistenceSurvivesRelaunch() {
         let store1 = makeStore()
         let r1 = sampleRecord(clean: "One", duration: 1.0)
@@ -226,6 +238,7 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(store2.records.last?.durationSeconds, 1.0)
     }
 
+    @MainActor
     func testDeleteRecordById() {
         let store = makeStore()
         let r1 = sampleRecord(clean: "Record 1")
@@ -250,6 +263,7 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(diskRecords.map(\.cleanTranscript), ["Record 3", "Record 1"])
     }
 
+    @MainActor
     func testDeleteNonExistentIdIsNoOp() {
         let store = makeStore()
         let r = sampleRecord()
@@ -261,6 +275,7 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(store.records.first?.id, r.id)
     }
 
+    @MainActor
     func testDeleteMultipleRecords() {
         let store = makeStore()
         let r1 = sampleRecord(clean: "A")
@@ -281,6 +296,7 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(diskRecords.first?.cleanTranscript, "B")
     }
 
+    @MainActor
     func testClearAllEmptiesStoreAndFile() {
         let store = makeStore()
         store.saveRecord(sampleRecord(clean: "Item 1"))
@@ -295,6 +311,7 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertTrue(diskRecords.isEmpty)
     }
 
+    @MainActor
     func testCorruptedFileGracefulRecovery() throws {
         // Write corrupt non-JSON content
         try "Corrupted invalid JSON payload {{{".write(to: testFileURL, atomically: true, encoding: .utf8)
@@ -313,12 +330,14 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(diskRecords.first?.cleanTranscript, "Recovered")
     }
 
+    @MainActor
     func testDefaultFileURLStructure() {
         let defaultURL = TranscriptionHistoryStore.defaultFileURL
         XCTAssertTrue(defaultURL.lastPathComponent == "transcription_history.json")
         XCTAssertTrue(defaultURL.deletingLastPathComponent().lastPathComponent == "EdgeEloquent")
     }
 
+    @MainActor
     func testLocalIsolationNoCloudSync() {
         // Strict privacy requirement: Local storage only
         let defaultURL = TranscriptionHistoryStore.defaultFileURL
