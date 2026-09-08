@@ -144,15 +144,15 @@ public struct LocalTranscriptCleaner: LocalCleanupProvider, Sendable {
             // English fillers
             rules.append((compile(#"(?i)(?:,\s*)?\byou\s+know\b(?:\s*,)?"#), " ", "you know"))
             rules.append((compile(#"(?i)(?:,\s*)?\b(?:sort|kind)\s+of\b(?:\s*,)?"#), " ", "sort of / kind of"))
-            rules.append((compile(#"(?i)(?:^|(?<=[,\.!?]\s))\bbasically[,\\s]*"#), "", "basically"))
+            rules.append((compile(#"(?i)(?:^|(?<=[,\.!?]\s))\bbasically[,\s]*"#), "", "basically"))
             rules.append((compile(#"(?i),\s*basically\s*,"#), " ", "basically"))
             rules.append((compile(#"(?i)\bbasically\b(?:\s*,)?"#), "", "basically"))
-            rules.append((compile(#"(?i)(?:^|(?<=[,\.!?]\s))\bactually[,\\s]*"#), "", "actually"))
+            rules.append((compile(#"(?i)(?:^|(?<=[,\.!?]\s))\bactually[,\s]*"#), "", "actually"))
             rules.append((compile(#"(?i),\s*actually\s*,"#), " ", "actually"))
             rules.append((compile(#"(?i)(?:,\s*)?\bactually\b(?=\s*[,\.!?]|$)"#), "", "actually"))
             rules.append((compile(#"(?i)\bactually\b(?=\s+that\b)"#), "", "actually"))
             rules.append((compile(#"(?i),\s*like\s*,"#), " ", "like"))
-            rules.append((compile(#"(?i)(?:^|(?<=[,\.!?]\s))\blike[,\\s]+(?=[a-zA-Z])"#), "", "like"))
+            rules.append((compile(#"(?i)(?:^|(?<=[,\.!?]\s))\blike[,\s]+(?=[a-zA-Z])"#), "", "like"))
             rules.append((compile(#"(?i)\b(was|were|am|is|are)\s+like\s+(?=[a-zA-Z]+ing\b)"#), "$1 ", "like"))
             
             // Russian fillers
@@ -161,7 +161,7 @@ public struct LocalTranscriptCleaner: LocalCleanupProvider, Sendable {
             // "в общем говоря" / "в общем"
             rules.append((compile(#"(?i)(?:,\s*)?\bв\s+общем(?:\s+говоря)?\b(?:\s*,)?"#), " ", "в общем"))
             // "как бы" (preserving "как бы то ни было", "как бы ни было")
-            rules.append((compile(#"(?i)(?:,\s*)?\bкак\s+бы\b(?!\\s+(?:то\s+)?ни\s+было)(?:\s*,)?"#), " ", "как бы"))
+            rules.append((compile(#"(?i)(?:,\s*)?\bкак\s+бы\b(?!\s+(?:то\s+)?ни\s+было)(?:\s*,)?"#), " ", "как бы"))
             // "типа"
             rules.append((compile(#"(?i)(?:,\s*)?\bтипа\b(?:\s*,)?"#), " ", "типа"))
             // "значит" (when filler: not preceded by "это" or "что")
@@ -171,7 +171,7 @@ public struct LocalTranscriptCleaner: LocalCleanupProvider, Sendable {
             // "вот" at sentence end: ", вот."
             rules.append((compile(#"(?i)[,\s]+\bвот\b(?=\s*[\.!?\u2026])"#), "", "вот"))
             // "вот" (introductory/parenthetical when not pointing to demonstratives/locations)
-            rules.append((compile(#"(?i)(?:^|(?<=[,\.!?]\s)|(?<=\s))\bвот\b(?!\\s+(?:это|этот|эта|эти|тот|та|те|здесь|тут|он|она|оно|они|так|почему|куда|где|когда|как|зачем))(?=[,\s]|$)(?:\s*,)?"#), "", "вот"))
+            rules.append((compile(#"(?i)(?:^|(?<=[,\.!?]\s)|(?<=\s))\bвот\b(?!\s+(?:это|этот|эта|эти|тот|та|те|здесь|тут|он|она|оно|они|так|почему|куда|где|когда|как|зачем))(?=[,\s]|$)(?:\s*,)?"#), "", "вот"))
             
             self.fillerRules = rules
             

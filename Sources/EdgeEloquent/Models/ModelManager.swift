@@ -293,6 +293,12 @@ public final class ModelManager: ObservableObject {
             }
         }
 
+        // Automatically activate first ready downloaded model if no model is currently active
+        if activeModelId == nil, let firstReady = supportedModels.first(where: { isModelDownloaded($0) }) {
+            activeModelId = firstReady.id
+            modelStates[firstReady.id] = .active
+        }
+
         // Apple Native Speech fallback handling
         if activeModelId == "apple-native-speech" {
             modelStates["apple-native-speech"] = .active
@@ -482,12 +488,12 @@ public final class ModelManager: ObservableObject {
             }
         }
 
-        // Default activation: check if default model is downloaded, or fall back to Apple Native Speech
-        if isModelDownloaded(SupportedAudioModel.defaultModel) {
-            try? setActiveModel(id: SupportedAudioModel.defaultModel.id)
+        // Default activation: check if any supported model is downloaded, activate first ready
+        if let firstReady = supportedModels.first(where: { isModelDownloaded($0) }) {
+            activeModelId = firstReady.id
+            modelStates[firstReady.id] = .active
         } else {
-            // Instant out-of-the-box fallback without requiring downloads
-            activeModelId = "apple-native-speech"
+            activeModelId = nil
         }
     }
 }

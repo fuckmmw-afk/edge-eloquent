@@ -90,7 +90,7 @@ public final class TranscriptionHistoryStore: ObservableObject {
 
     nonisolated public static func read(from url: URL) -> [TranscriptionRecord] {
         guard let data = try? Data(contentsOf: url),
-              let decoded = try? JSONDecoder().decode([TranscriptionRecord].self, from: data) else {
+              let decoded = try? decoder.decode([TranscriptionRecord].self, from: data) else {
             return []
         }
         return decoded
@@ -128,7 +128,13 @@ public final class TranscriptionHistoryStore: ObservableObject {
     /// New records are prepended so that `records.first` is always the most recent.
     @discardableResult
     public func saveRecord(_ record: TranscriptionRecord) -> TranscriptionRecord {
-        addRecord(record)
+        if let index = records.firstIndex(where: { $0.id == record.id }) {
+            records[index] = record
+        } else {
+            records.insert(record, at: 0)
+        }
+        persistAllRecordsImmediately()
+        return record
     }
 
     public func addRecord(_ record: TranscriptionRecord) -> TranscriptionRecord {
@@ -240,35 +246,7 @@ public final class TranscriptionHistoryStore: ObservableObject {
     public func persistAllRecordsImmediately() {
         do {
             let data = try Self.encoder.encode(records)
-
-            // Atomic write pattern: write to unique temporary file, then rename/replace
-            let tempDir = destinationURL.deletingLastPathComponent()
-            let tempURL = tempDir.appendingPathComponent(".temp_\(UUID().uuidString).tmp")
-
-            defer {
-                if fileManager.fileExists(atPath: tempURL.path) {
-                    try? fileManager.removeItem(at: tempURL)
-                }
-            }
-
-            // Write to temp file using NSDataWritingAtomic (Data.WritingOptions.atomic)
-            try data.write(to: tempURL, options: .atomic)
-
-            // Atomically replace the destination with the temporary file
-            if fileManager.fileExists(atPath: destinationURL.path) {
-                do {
-                    _ = try fileManager.replaceItemAt(
-                        destinationURL,
-                        withItemAt: tempURL
-                    )
-                } catch {
-                    // Fallback in environments where replaceItemAt might fail across specific POSIX mounts
-                    try? fileManager.removeItem(at: destinationURL)
-                    try fileManager.moveItem(at: tempURL, to: destinationURL)
-                }
-            } else {
-                try fileManager.moveItem(at: tempURL, to: destinationURL)
-            }
+            try data.write(to: destinationURL, options: .atomic)
         } catch {
             print("[TranscriptionHistoryStore] Failed to write history atomically to \(destinationURL.path): \(error)")
         }
@@ -277,7 +255,7 @@ public final class TranscriptionHistoryStore: ObservableObject {
     // MARK: - JSON Coders
 
     /// Pre-configured JSONEncoder standardizing dates to ISO-8601.
-    public static var encoder: JSONEncoder {
+    nonisolated public static var encoder: JSONEncoder {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -285,7 +263,7 @@ public final class TranscriptionHistoryStore: ObservableObject {
     }
 
     /// Pre-configured JSONDecoder expecting ISO-8601 dates.
-    public static var decoder: JSONDecoder {
+    nonisolated public static var decoder: JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return decoder
