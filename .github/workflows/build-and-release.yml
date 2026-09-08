@@ -152,18 +152,18 @@ jobs:
 
           echo "=== AUDITING FINAL INFO.PLIST METADATA ==="
           python3 -c '
-import plistlib
-p = plistlib.load(open("Payload/EdgeEloquent.app/Info.plist", "rb"))
-assert p.get("CFBundleIdentifier") == "com.edgeeloquent.app", f"Invalid bundle id: {p.get("CFBundleIdentifier")}"
-assert p.get("CFBundleName") == "EdgeEloquent", f"Invalid name: {p.get("CFBundleName")}"
-assert p.get("CFBundleShortVersionString") == "1.0.0", f"Invalid version: {p.get("CFBundleShortVersionString")}"
-print("BUNDLE METADATA VALIDATED:")
-print("  CFBundleName:", p.get("CFBundleName"))
-print("  CFBundleDisplayName:", p.get("CFBundleDisplayName"))
-print("  CFBundleIdentifier:", p.get("CFBundleIdentifier"))
-print("  CFBundleShortVersionString:", p.get("CFBundleShortVersionString"))
-print("  MinimumOSVersion:", p.get("MinimumOSVersion"))
-'
+          import plistlib
+          p = plistlib.load(open("Payload/EdgeEloquent.app/Info.plist", "rb"))
+          assert p.get("CFBundleIdentifier") == "com.edgeeloquent.app", f"Invalid bundle id: {p.get("CFBundleIdentifier")}"
+          assert p.get("CFBundleName") == "EdgeEloquent", f"Invalid name: {p.get("CFBundleName")}"
+          assert p.get("CFBundleShortVersionString") == "1.0.0", f"Invalid version: {p.get("CFBundleShortVersionString")}"
+          print("BUNDLE METADATA VALIDATED:")
+          print("  CFBundleName:", p.get("CFBundleName"))
+          print("  CFBundleDisplayName:", p.get("CFBundleDisplayName"))
+          print("  CFBundleIdentifier:", p.get("CFBundleIdentifier"))
+          print("  CFBundleShortVersionString:", p.get("CFBundleShortVersionString"))
+          print("  MinimumOSVersion:", p.get("MinimumOSVersion"))
+          '
 
           zip -qr -9 EdgeEloquent.ipa Payload
           echo "Created EdgeEloquent.ipa: $(du -sh EdgeEloquent.ipa | cut -f1)"
