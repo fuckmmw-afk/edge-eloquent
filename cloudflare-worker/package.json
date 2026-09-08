@@ -1,0 +1,24 @@
+{
+  "name": "edge-eloquent-cloudflare-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker for Edge Eloquent LLM post-processing and web search augmentation with strict text-only guards",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "edge-eloquent",
+    "cloudflare-worker",
+    "workers-ai",
+    "speech-enhancement",
+    "privacy-first"
+  ],
+  "author": "Edge Eloquent Authors",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}

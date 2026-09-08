@@ -1,0 +1,533 @@
+// Tests/EdgeEloquentTests/ModelManagerTests.swift
+// Edge Eloquent - On-Device Audio Intelligence Tests
+import XCTest
+import CryptoKit
+@testable import EdgeEloquent
+
+// MARK: - Mock URL Protocol for Network Isolation
+
+final class MockModelURLProtocol: URLProtocol, @unchecked Sendable {
+    static let lock = NSLock()
+    static var requestHandler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        return true
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        return request
+    }
+
+    override func startLoading() {
+        MockModelURLProtocol.lock.lock()
+        let handler = MockModelURLProtocol.requestHandler
+        MockModelURLProtocol.lock.unlock()
+
+        guard let handler = handler else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+
+        do {
+            let (response, data) = try handler(request)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        } catch {
+            client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+
+    override func stopLoading() {}
+}
+
+// MARK: - ModelManagerTests Suite
+
+@MainActor
+final class ModelManagerTests: XCTestCase {
+
+    private var tempDirectoryURL: URL!
+    private var testUserDefaults: UserDefaults!
+    private var testSuiteName: String!
+
+    override func setUpWithError() throws {
+        super.setUp()
+        let uniqueID = UUID().uuidString
+        tempDirectoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("EdgeEloquentModelTests-\(uniqueID)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDirectoryURL, withIntermediateDirectories: true, attributes: nil)
+
+        testSuiteName = "com.edgeeloquent.tests.\(uniqueID)"
+        testUserDefaults = UserDefaults(suiteName: testSuiteName)!
+        testUserDefaults.removePersistentDomain(forName: testSuiteName)
+
+        // Reset mock network handler
+        MockModelURLProtocol.lock.lock()
+        MockModelURLProtocol.requestHandler = nil
+        MockModelURLProtocol.lock.unlock()
+    }
+
+    override func tearDownWithError() throws {
+        if let tempDirectoryURL = tempDirectoryURL {
+            try? FileManager.default.removeItem(at: tempDirectoryURL)
+        }
+        if let testSuiteName = testSuiteName {
+            testUserDefaults?.removePersistentDomain(forName: testSuiteName)
+        }
+        MockModelURLProtocol.lock.lock()
+        MockModelURLProtocol.requestHandler = nil
+        MockModelURLProtocol.lock.unlock()
+        super.tearDown()
+    }
+
+    // MARK: - SupportedAudioModel Catalog Tests
+
+    func testSupportedAudioModelsCatalogCompleteness() {
+        let models = SupportedAudioModel.allModels
+
+        // Invariant: Exactly the 4 officially supported audio models
+        XCTAssertEqual(models.count, 4)
+
+        let ids = Set(models.map { $0.name })
+        XCTAssertTrue(ids.contains("Gemma-4-E2B-it"))
+        XCTAssertTrue(ids.contains("Gemma-4-E4B-it"))
+        XCTAssertTrue(ids.contains("Gemma-3n-E2B-it"))
+        XCTAssertTrue(ids.contains("Gemma-3n-E4B-it"))
+
+        // Invariant: All supported models must support audio dictation
+        for model in models {
+            XCTAssertTrue(model.llmSupportAudio, "Model \(model.name) must support audio input")
+            XCTAssertTrue(model.filename.hasSuffix(".litertlm"), "Model \(model.name) must be .litertlm format")
+            XCTAssertFalse(model.commitHash.isEmpty, "Model \(model.name) must have a pinned commit hash")
+            XCTAssertGreaterThan(model.expectedBytes, 0, "Model \(model.name) expected bytes must be positive")
+            XCTAssertGreaterThan(model.minRAMBytes, 0, "Model \(model.name) min RAM must be positive")
+            XCTAssertFalse(model.sanitizedDirectoryName.contains("/"), "Sanitized directory name must not contain slashes")
+        }
+    }
+
+    func testModelLookupByIdOrName() {
+        let e2b = SupportedAudioModel.find(byIdOrName: "Gemma-4-E2B-it")
+        XCTAssertNotNil(e2b)
+        XCTAssertEqual(e2b?.id, "litert-community/gemma-4-E2B-it-litert-lm")
+
+        let g3n = SupportedAudioModel.find(byIdOrName: "google/gemma-3n-E2B-it-litert-lm")
+        XCTAssertNotNil(g3n)
+        XCTAssertEqual(g3n?.name, "Gemma-3n-E2B-it")
+
+        let nonexistent = SupportedAudioModel.find(byIdOrName: "nonexistent-model")
+        XCTAssertNil(nonexistent)
+    }
+
+    func testModelResolveURLGeneration() {
+        let model = SupportedAudioModel.gemma4_E2B_it
+        let url = model.resolveURL()
+
+        XCTAssertEqual(url.host, "huggingface.co")
+        XCTAssertTrue(url.path.contains("litert-community/gemma-4-E2B-it-litert-lm"))
+        XCTAssertTrue(url.path.contains("resolve"))
+        XCTAssertTrue(url.path.contains(model.commitHash))
+        XCTAssertTrue(url.path.contains("gemma-4-E2B-it.litertlm"))
+    }
+
+    func testModelFormattedSize() {
+        let model = SupportedAudioModel.gemma4_E2B_it
+        let formatted = model.formattedExpectedSize
+        XCTAssertFalse(formatted.isEmpty)
+        XCTAssertTrue(formatted.contains("GB") || formatted.contains("B"))
+    }
+
+    // MARK: - ModelRepoDownloader Utilities Tests
+
+    func testFileSizeValidation() throws {
+        let testFile = tempDirectoryURL.appendingPathComponent("dummy.bin")
+        let dummyData = Data(repeating: 0xAB, count: 1024)
+        try dummyData.write(to: testFile)
+
+        // Exact match succeeds
+        XCTAssertNoThrow(try ModelRepoDownloader.validateFileSize(fileURL: testFile, expectedBytes: 1024))
+
+        // Mismatch throws
+        XCTAssertThrowsError(try ModelRepoDownloader.validateFileSize(fileURL: testFile, expectedBytes: 2048)) { error in
+            guard case DownloaderError.fileSizeMismatch(let expected, let actual) = error else {
+                XCTFail("Expected fileSizeMismatch, got \(error)")
+                return
+            }
+            XCTAssertEqual(expected, 2048)
+            XCTAssertEqual(actual, 1024)
+        }
+    }
+
+    func testStreamingSHA256ChecksumCalculation() throws {
+        let testFile = tempDirectoryURL.appendingPathComponent("hash_test.bin")
+        let testString = "EdgeEloquent-LiteRT-Audio-Verification"
+        let data = testString.data(using: .utf8)!
+        try data.write(to: testFile)
+
+        let computedHash = try ModelRepoDownloader.computeSHA256(for: testFile)
+
+        // Compute expected hash using CryptoKit directly
+        let expectedDigest = SHA256.hash(data: data)
+        let expectedHash = expectedDigest.map { String(format: "%02x", $0) }.joined()
+
+        XCTAssertEqual(computedHash, expectedHash)
+
+        // Validate checksum helper
+        XCTAssertNoThrow(try ModelRepoDownloader.validateChecksum(fileURL: testFile, expectedChecksum: expectedHash))
+        XCTAssertThrowsError(try ModelRepoDownloader.validateChecksum(fileURL: testFile, expectedChecksum: "0000000000000000000000000000000000000000000000000000000000000000"))
+    }
+
+    func testAtomicMoveAndReplace() throws {
+        let sourceFile = tempDirectoryURL.appendingPathComponent("source.bin")
+        let destFile = tempDirectoryURL.appendingPathComponent("dest_dir/final.bin")
+
+        let sourceData = "New model weights".data(using: .utf8)!
+        try sourceData.write(to: sourceFile)
+
+        // Atomic move into new directory
+        try ModelRepoDownloader.atomicMove(from: sourceFile, to: destFile)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: sourceFile.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: destFile.path))
+
+        let readBack = try String(contentsOf: destFile, encoding: .utf8)
+        XCTAssertEqual(readBack, "New model weights")
+
+        // Replace existing item
+        let newSource = tempDirectoryURL.appendingPathComponent("new_source.bin")
+        try "Updated weights".data(using: .utf8)!.write(to: newSource)
+        try ModelRepoDownloader.atomicMove(from: newSource, to: destFile)
+
+        let updatedReadBack = try String(contentsOf: destFile, encoding: .utf8)
+        XCTAssertEqual(updatedReadBack, "Updated weights")
+    }
+
+    func testDownloadProgressFormatting() {
+        let progress = DownloadProgress(
+            fractionCompleted: 0.75,
+            bytesWritten: 750_000_000,
+            totalBytes: 1_000_000_000,
+            speedBytesPerSecond: 25_000_000
+        )
+
+        XCTAssertEqual(progress.fractionCompleted, 0.75)
+        XCTAssertEqual(progress.bytesWritten, 750_000_000)
+        XCTAssertEqual(progress.totalBytes, 1_000_000_000)
+        XCTAssertTrue(progress.formattedSpeed.contains("/s"))
+        XCTAssertTrue(progress.formattedBytesTransfer.contains("/"))
+    }
+
+    // MARK: - HuggingFaceSearchService Tests
+
+    func testMetadataParsingAndAudioCompatibility() throws {
+        let json = """
+        {
+            "id": "litert-community/gemma-4-E2B-it-litert-lm",
+            "author": "litert-community",
+            "sha": "7fa1d78473894f7e736a21d920c3aa80f950c0db",
+            "tags": ["litert-lm", "gemma", "audio", "multimodal"],
+            "pipeline_tag": "audio-to-text",
+            "siblings": [
+                {
+                    "rfilename": "gemma-4-E2B-it.litertlm",
+                    "size": 2588147712,
+                    "lfs": {
+                        "oid": "7fa1d78473894f7e736a21d920c3aa80f950c0db",
+                        "size": 2588147712
+                    }
+                },
+                {
+                    "rfilename": "README.md",
+                    "size": 450
+                }
+            ],
+            "cardData": {
+                "tags": ["audio"],
+                "llmSupportAudio": true,
+                "llmSupportImage": true
+            }
+        }
+        """
+        let data = json.data(using: .utf8)!
+        let metadata = try JSONDecoder().decode(HuggingFaceModelMetadata.self, from: data)
+
+        XCTAssertEqual(metadata.id, "litert-community/gemma-4-E2B-it-litert-lm")
+        XCTAssertEqual(metadata.siblings.count, 2)
+        XCTAssertEqual(metadata.litertlmSiblings.count, 1)
+        XCTAssertEqual(metadata.primaryLitertlmSibling?.rfilename, "gemma-4-E2B-it.litertlm")
+        XCTAssertEqual(metadata.cardData?.llmSupportAudio, true)
+
+        let service = HuggingFaceSearchService()
+        let report = service.verifyCompatibility(metadata: metadata)
+
+        XCTAssertTrue(report.isCompatible)
+        XCTAssertTrue(report.hasLitertlmFormat)
+        XCTAssertTrue(report.supportsAudio)
+        XCTAssertEqual(report.modelFilename, "gemma-4-E2B-it.litertlm")
+        XCTAssertEqual(report.fileSizeBytes, 2_588_147_712)
+    }
+
+    func testIncompatibleModelWithoutLitertlmFormat() throws {
+        let json = """
+        {
+            "id": "openai/whisper-large-v3",
+            "tags": ["audio", "speech"],
+            "pipeline_tag": "automatic-speech-recognition",
+            "siblings": [
+                { "rfilename": "model.safetensors", "size": 3000000000 }
+            ],
+            "cardData": {
+                "llmSupportAudio": true
+            }
+        }
+        """
+        let data = json.data(using: .utf8)!
+        let metadata = try JSONDecoder().decode(HuggingFaceModelMetadata.self, from: data)
+
+        let service = HuggingFaceSearchService()
+        let report = service.verifyCompatibility(metadata: metadata)
+
+        XCTAssertFalse(report.isCompatible, "Model without .litertlm format must be rejected")
+        XCTAssertFalse(report.hasLitertlmFormat)
+        XCTAssertTrue(report.supportsAudio)
+        XCTAssertTrue(report.diagnosticReasons.contains(where: { $0.contains(".litertlm") }))
+    }
+
+    func testIncompatibleModelWithoutAudioSupport() throws {
+        let json = """
+        {
+            "id": "litert-community/Qwen2.5-1.5B-Instruct",
+            "tags": ["text-generation", "litert-lm"],
+            "pipeline_tag": "text-generation",
+            "siblings": [
+                { "rfilename": "qwen2.5-1.5b-instruct.litertlm", "size": 1600000000 }
+            ],
+            "cardData": {
+                "llmSupportAudio": false
+            }
+        }
+        """
+        let data = json.data(using: .utf8)!
+        let metadata = try JSONDecoder().decode(HuggingFaceModelMetadata.self, from: data)
+
+        let service = HuggingFaceSearchService()
+        let report = service.verifyCompatibility(metadata: metadata)
+
+        XCTAssertFalse(report.isCompatible, "Model without audio support must be rejected for dictation pipeline")
+        XCTAssertTrue(report.hasLitertlmFormat)
+        XCTAssertFalse(report.supportsAudio)
+        XCTAssertTrue(report.diagnosticReasons.contains(where: { $0.contains("audio") }))
+    }
+
+    func testHuggingFaceNetworkFetchWithMock() async throws {
+        let modelId = "google/gemma-3n-E2B-it-litert-lm"
+        let jsonResponse = """
+        {
+            "id": "\(modelId)",
+            "sha": "73b019b63436d346f68dd9c1dbfd117eb264d888",
+            "tags": ["litert-lm", "audio"],
+            "siblings": [
+                { "rfilename": "gemma-3n-E2B-it-int4.litertlm", "size": 3388604416 }
+            ],
+            "cardData": {
+                "llmSupportAudio": true
+            }
+        }
+        """
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockModelURLProtocol.self]
+        let mockSession = URLSession(configuration: config)
+
+        MockModelURLProtocol.lock.lock()
+        MockModelURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            return (response, jsonResponse.data(using: .utf8)!)
+        }
+        MockModelURLProtocol.lock.unlock()
+
+        let service = HuggingFaceSearchService(session: mockSession)
+        let report = try await service.fetchAndVerifyModel(modelId: modelId)
+
+        XCTAssertTrue(report.isCompatible)
+        XCTAssertEqual(report.modelId, modelId)
+        XCTAssertEqual(report.modelFilename, "gemma-3n-E2B-it-int4.litertlm")
+    }
+
+    // MARK: - ModelManager Lifecycle & State Tests
+
+    func testModelManagerInitialStateAllNotDownloaded() {
+        let manager = ModelManager(
+            modelsDirectory: tempDirectoryURL,
+            userDefaults: testUserDefaults
+        )
+
+        XCTAssertEqual(manager.supportedModels.count, 4)
+        XCTAssertNil(manager.activeModelId)
+        XCTAssertNil(manager.activeModel)
+        XCTAssertEqual(manager.downloadedModels.count, 0)
+
+        for model in manager.supportedModels {
+            XCTAssertEqual(manager.state(for: model.id), .notDownloaded)
+        }
+    }
+
+    func testModelManagerDetectsDownloadedFiles() throws {
+        let testModel = SupportedAudioModel.gemma4_E2B_it
+        let manager = ModelManager(
+            modelsDirectory: tempDirectoryURL,
+            userDefaults: testUserDefaults
+        )
+
+        let targetURL = manager.modelFileURL(for: testModel)
+        try FileManager.default.createDirectory(at: targetURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+
+        // Create dummy model file of expected size
+        let handle = FileManager.default.createFile(atPath: targetURL.path, contents: nil)
+        XCTAssertTrue(handle)
+        let fileHandle = try FileHandle(forWritingTo: targetURL)
+        try fileHandle.truncate(atOffset: UInt64(testModel.expectedBytes))
+        try fileHandle.close()
+
+        // Refresh states
+        manager.refreshModelStates()
+
+        XCTAssertEqual(manager.state(for: testModel.id), .active) // First ready model automatically activates
+        XCTAssertEqual(manager.activeModelId, testModel.id)
+        XCTAssertEqual(manager.activeModel?.name, "Gemma-4-E2B-it")
+        XCTAssertEqual(manager.downloadedModels.count, 1)
+    }
+
+    func testSetActiveModelPersistenceInUserDefaults() throws {
+        let model1 = SupportedAudioModel.gemma4_E2B_it
+        let model2 = SupportedAudioModel.gemma3n_E2B_it
+
+        let manager = ModelManager(
+            modelsDirectory: tempDirectoryURL,
+            userDefaults: testUserDefaults
+        )
+
+        // Place both models on disk
+        for m in [model1, model2] {
+            let url = manager.modelFileURL(for: m)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            FileManager.default.createFile(atPath: url.path, contents: nil)
+            let fh = try FileHandle(forWritingTo: url)
+            try fh.truncate(atOffset: UInt64(m.expectedBytes))
+            try fh.close()
+        }
+
+        manager.refreshModelStates()
+
+        // Switch active model to model2
+        try manager.setActiveModel(id: model2.id)
+
+        XCTAssertEqual(manager.activeModelId, model2.id)
+        XCTAssertEqual(manager.state(for: model2.id), .active)
+        XCTAssertEqual(manager.state(for: model1.id), .ready)
+
+        // Verify persistence in UserDefaults
+        let persisted = testUserDefaults.string(forKey: ModelManager.activeModelUserDefaultsKey)
+        XCTAssertEqual(persisted, model2.id)
+
+        // Create new ModelManager with same UserDefaults and verify restored active model
+        let newManager = ModelManager(
+            modelsDirectory: tempDirectoryURL,
+            userDefaults: testUserDefaults
+        )
+        XCTAssertEqual(newManager.activeModelId, model2.id)
+        XCTAssertEqual(newManager.state(for: model2.id), .active)
+        XCTAssertEqual(newManager.state(for: model1.id), .ready)
+    }
+
+    func testSetActiveModelThrowsIfNotDownloaded() {
+        let manager = ModelManager(
+            modelsDirectory: tempDirectoryURL,
+            userDefaults: testUserDefaults
+        )
+
+        XCTAssertThrowsError(try manager.setActiveModel(id: SupportedAudioModel.gemma4_E4B_it.id)) { error in
+            guard case ModelManagerError.modelNotReady(let id) = error else {
+                XCTFail("Expected modelNotReady, got \(error)")
+                return
+            }
+            XCTAssertEqual(id, SupportedAudioModel.gemma4_E4B_it.id)
+        }
+    }
+
+    func testModelDeletionReclaimsSpaceAndResetsState() throws {
+        let model = SupportedAudioModel.gemma4_E2B_it
+        let manager = ModelManager(
+            modelsDirectory: tempDirectoryURL,
+            userDefaults: testUserDefaults
+        )
+
+        let targetURL = manager.modelFileURL(for: model)
+        try FileManager.default.createDirectory(at: targetURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: targetURL.path, contents: nil)
+        let fh = try FileHandle(forWritingTo: targetURL)
+        try fh.truncate(atOffset: UInt64(model.expectedBytes))
+        try fh.close()
+
+        manager.refreshModelStates()
+        manager.refreshDiskSpace()
+
+        XCTAssertTrue(manager.state(for: model.id).isDownloaded)
+        XCTAssertNotNil(manager.modelSizeOnDisk(for: model.id))
+
+        // Delete model
+        try manager.deleteModel(id: model.id)
+
+        XCTAssertEqual(manager.state(for: model.id), .notDownloaded)
+        XCTAssertNil(manager.activeModelId)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: targetURL.path))
+        XCTAssertNil(manager.modelSizeOnDisk(for: model.id))
+        XCTAssertNil(testUserDefaults.string(forKey: ModelManager.activeModelUserDefaultsKey))
+    }
+
+    func testDiskSpaceTrackingMetrics() {
+        let manager = ModelManager(
+            modelsDirectory: tempDirectoryURL,
+            userDefaults: testUserDefaults
+        )
+
+        manager.refreshDiskSpace()
+
+        // Available disk space should be non-zero on healthy storage volume
+        XCTAssertGreaterThan(manager.availableDiskSpaceBytes, 0)
+        XCTAssertGreaterThan(manager.totalDiskSpaceBytes, 0)
+        XCTAssertFalse(manager.availableStorageFormatted.isEmpty)
+        XCTAssertFalse(manager.totalStorageFormatted.isEmpty)
+    }
+
+    // MARK: - Architectural Invariant: Zero Bundled Weights
+
+    func testBundleWeightIsolationInvariantPassesWhenClean() throws {
+        // Standard bundle has no .litertlm weights
+        XCTAssertNoThrow(try ModelManager.assertNoBundledWeights(bundle: .main))
+    }
+
+    func testBundleWeightIsolationInvariantThrowsWhenWeightsPresent() throws {
+        // Create a simulated bundle directory containing forbidden .litertlm file
+        let simulatedBundleDir = tempDirectoryURL.appendingPathComponent("SimulatedApp.bundle", isDirectory: true)
+        try FileManager.default.createDirectory(at: simulatedBundleDir, withIntermediateDirectories: true)
+
+        let forbiddenFile = simulatedBundleDir.appendingPathComponent("gemma-4-E2B-it.litertlm")
+        FileManager.default.createFile(atPath: forbiddenFile.path, contents: Data("fake weights".utf8))
+
+        let simulatedBundle = Bundle(url: simulatedBundleDir)!
+
+        XCTAssertThrowsError(try ModelManager.assertNoBundledWeights(bundle: simulatedBundle)) { error in
+            guard case ModelManagerError.bundledWeightsDetected(let files) = error else {
+                XCTFail("Expected bundledWeightsDetected error, got \(error)")
+                return
+            }
+            XCTAssertFalse(files.isEmpty)
+            XCTAssertTrue(files.contains { $0.contains(".litertlm") })
+        }
+    }
+}

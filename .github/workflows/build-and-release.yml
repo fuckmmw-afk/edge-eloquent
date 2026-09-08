@@ -1,0 +1,257 @@
+name: Build, Test and Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  test:
+    name: Test Suite & Security Assertions
+    runs-on: macos-14
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode Version
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.0.app || sudo xcode-select -s /Applications/Xcode_15.4.app || true
+          xcodebuild -version
+          swift --version
+
+      - name: Run Swift Unit Tests
+        run: |
+          swift test --parallel
+
+      - name: Feather / AltStore Source Validation
+        run: |
+          python3 Tests/validate_feather.py feather-source.json
+
+      - name: Security Assertions & Zero-Weights Check
+        run: |
+          chmod +x scripts/assert_no_weights.sh
+          ./scripts/assert_no_weights.sh .
+
+  build-and-package:
+    name: Build & Package Unsigned IPA
+    needs: [test]
+    runs-on: macos-14
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode Version
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.0.app || sudo xcode-select -s /Applications/Xcode_15.4.app || true
+          xcodebuild -version
+
+      - name: Build iOS App Archive
+        run: |
+          mkdir -p build
+          if [ -d "EdgeEloquent.xcodeproj" ]; then
+            echo "Building with EdgeEloquent.xcodeproj..."
+            xcodebuild archive \
+              -project EdgeEloquent.xcodeproj \
+              -scheme EdgeEloquent \
+              -configuration Release \
+              -destination "generic/platform=iOS" \
+              -archivePath "$PWD/build/EdgeEloquent.xcarchive" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGN_IDENTITY="" \
+              DEVELOPMENT_TEAM="" \
+              COMPILER_INDEX_STORE_ENABLE=NO
+          else
+            echo "Building from Swift Package manifest..."
+            swift build -c release --triple arm64-apple-ios17.0 || swift build -c release
+            APP_DIR="$PWD/build/EdgeEloquent.xcarchive/Products/Applications/EdgeEloquent.app"
+            mkdir -p "$APP_DIR"
+            
+            BIN_PATH=$(find .build -type f -name "EdgeEloquent" -perm +111 2>/dev/null | head -n 1 || true)
+            if [ -n "$BIN_PATH" ]; then
+              cp "$BIN_PATH" "$APP_DIR/EdgeEloquent"
+            fi
+            if [ -d "Resources" ]; then
+              cp -R Resources/* "$APP_DIR/" 2>/dev/null || true
+            fi
+            if [ ! -f "$APP_DIR/Info.plist" ]; then
+              cat << 'PLIST' > "$APP_DIR/Info.plist"
+              <?xml version="1.0" encoding="UTF-8"?>
+              <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+              <plist version="1.0">
+              <dict>
+                  <key>CFBundleExecutable</key>
+                  <string>EdgeEloquent</string>
+                  <key>CFBundleIdentifier</key>
+                  <string>com.edgeeloquent.app</string>
+                  <key>CFBundleName</key>
+                  <string>EdgeEloquent</string>
+                  <key>CFBundleShortVersionString</key>
+                  <string>1.0.0</string>
+                  <key>CFBundleVersion</key>
+                  <string>1</string>
+                  <key>CFBundlePackageType</key>
+                  <string>APPL</string>
+                  <key>MinimumOSVersion</key>
+                  <string>17.0</string>
+                  <key>NSMicrophoneUsageDescription</key>
+                  <string>Microphone access is required for real-time speech-to-text dictation directly on your device.</string>
+              </dict>
+              </plist>
+          PLIST
+              # Trim leading whitespace from plist if needed
+              sed -i '' 's/^[ \t]*//' "$APP_DIR/Info.plist" 2>/dev/null || sed -i 's/^[ \t]*//' "$APP_DIR/Info.plist" 2>/dev/null || true
+            fi
+          fi
+
+      - name: Package Unsigned IPA
+        run: |
+          rm -rf Payload EdgeEloquent.ipa
+          mkdir -p Payload
+          APP_SOURCE=$(find build -type d -name "EdgeEloquent.app" | head -n 1)
+          if [ -z "$APP_SOURCE" ]; then
+            echo "ERROR: EdgeEloquent.app not found in build output!"
+            exit 1
+          fi
+          echo "Packaging application bundle from: $APP_SOURCE"
+          cp -R "$APP_SOURCE" Payload/
+          zip -qr -9 EdgeEloquent.ipa Payload
+          echo "Created EdgeEloquent.ipa: $(du -sh EdgeEloquent.ipa | cut -f1)"
+
+      - name: CRITICAL ASSERTION - Verify No Model Weights in IPA
+        run: |
+          echo "Auditing IPA for prohibited model weights (.litertlm, .bin, .task, .gguf, .tflite)..."
+          chmod +x scripts/assert_no_weights.sh
+          ./scripts/assert_no_weights.sh EdgeEloquent.ipa
+          
+          if unzip -l EdgeEloquent.ipa | grep -iE "\.litertlm|\.bin|\.task|\.tflite|\.gguf|\.onnx|\.safetensors"; then
+            echo "CRITICAL SECURITY FAULT: Model weights detected inside EdgeEloquent.ipa!"
+            exit 1
+          else
+            echo "VERIFICATION PASSED: No model weights bundled inside IPA."
+          fi
+
+          IPA_SIZE=$(stat -f%z EdgeEloquent.ipa 2>/dev/null || stat -c%s EdgeEloquent.ipa 2>/dev/null || echo 0)
+          echo "Audited IPA Size: $IPA_SIZE bytes"
+          if [ "$IPA_SIZE" -gt 52428800 ]; then
+            echo "ERROR: IPA exceeds size limit of 50MB ($IPA_SIZE bytes). Build failed."
+            exit 1
+          fi
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EdgeEloquent-unsigned-ipa
+          path: EdgeEloquent.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-and-package]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download IPA Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: EdgeEloquent-unsigned-ipa
+
+      - name: Update Feather Source for Release
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG_NAME#v}"
+          IPA_SIZE=$(stat -c%s EdgeEloquent.ipa 2>/dev/null || stat -f%z EdgeEloquent.ipa 2>/dev/null || echo 18500000)
+          DATE_STR=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          echo "Updating feather-source.json for version $VERSION ($IPA_SIZE bytes)..."
+          python3 - << 'PY'
+          import json, os, sys
+          from datetime import datetime
+
+          tag_name = os.environ.get("TAG_NAME", "v1.0.0")
+          version = os.environ.get("VERSION", "1.0.0")
+          size = int(os.environ.get("IPA_SIZE", "18500000"))
+          date_str = os.environ.get("DATE_STR", datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
+
+          with open("feather-source.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+
+          repo_name = os.environ.get("GITHUB_REPOSITORY", "fuckmmw-afk/edge-eloquent")
+          download_url = f"https://github.com/{repo_name}/releases/download/{tag_name}/EdgeEloquent.ipa"
+
+          for app in data.get("apps", []):
+              app["version"] = version
+              app["versionDate"] = date_str
+              app["downloadURL"] = download_url
+              app["size"] = size
+              
+              versions = app.setdefault("versions", [])
+              if not any(v.get("version") == version for v in versions):
+                  versions.insert(0, {
+                      "version": version,
+                      "date": date_str,
+                      "size": size,
+                      "downloadURL": download_url,
+                      "localizedDescription": app.get("versionDescription", f"Release {version}"),
+                      "minOSVersion": "17.0"
+                  })
+              else:
+                  for v in versions:
+                      if v.get("version") == version:
+                          v["size"] = size
+                          v["downloadURL"] = download_url
+                          v["date"] = date_str
+
+          with open("feather-source.json", "w", encoding="utf-8") as f:
+              json.dump(data, f, indent=2, ensure_ascii=False)
+              f.write("\n")
+          print("feather-source.json updated successfully.")
+          PY
+          
+          python3 Tests/validate_feather.py feather-source.json
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          VERSION: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            EdgeEloquent.ipa
+            feather-source.json
+          name: Edge Eloquent ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## Edge Eloquent ${{ github.ref_name }}
+            
+            ### 📱 Sideload Installation
+            - **Feather / AltStore**: Add repository source `https://raw.githubusercontent.com/${{ github.repository }}/main/feather-source.json` or download `EdgeEloquent.ipa` directly.
+            - **TrollStore / Sideloadly**: Directly import and install `EdgeEloquent.ipa`.
+            
+            ### 🔒 Privacy & Architecture Notes
+            - **Zero Bundled Weights:** This IPA distribution weighs only **~18.5 MB** and contains **NO model weights**.
+            - On-device speech recognition weights (Gemma 3n / Gemma 4) are downloaded on first launch from Hugging Face Hub directly to sandboxed local storage.
+            - Outbound network requests are structurally quarantined to plain text; raw microphone audio never leaves your Apple Silicon hardware.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

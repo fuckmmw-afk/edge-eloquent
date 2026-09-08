@@ -1,0 +1,68 @@
+{
+  "name": "Edge Eloquent Source",
+  "identifier": "com.edgeeloquent.source",
+  "subtitle": "Official source repository for Edge Eloquent on-device dictation",
+  "description": "The official Feather and AltStore-compatible repository for Edge Eloquent. Distributes standalone signed or sign-ready IPAs of Edge Eloquent, powered by Google AI Edge runtime for private on-device dictation.",
+  "iconURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/icon.png",
+  "website": "https://github.com/fuckmmw-afk/edge-eloquent",
+  "tintColor": "4A90E2",
+  "featuredApps": [
+    "com.edgeeloquent.app"
+  ],
+  "apps": [
+    {
+      "name": "Edge Eloquent",
+      "bundleIdentifier": "com.edgeeloquent.app",
+      "developerName": "Edge Eloquent Authors",
+      "subtitle": "Minimalist Realtime Dictation powered by Google AI Edge",
+      "localizedDescription": "Minimalist iOS realtime dictation powered by Google AI Edge runtime. Transcribes locally on-device using multi-model support, performs local filler cleanup, and enhances text via secure text-only Cloudflare processing. Audio never leaves the device.",
+      "iconURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/icon.png",
+      "tintColor": "4A90E2",
+      "version": "1.0.0",
+      "versionDate": "2026-09-08T00:00:00Z",
+      "versionDescription": "Initial release with Google AI Edge multi-model dictation, local cleaner, and Cloudflare text enhancer.",
+      "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.0/EdgeEloquent.ipa",
+      "size": 18500000,
+      "screenshotURLs": [
+        "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/screenshot1.png",
+        "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/screenshot2.png"
+      ],
+      "screenshots": [
+        {
+          "imageURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/screenshot1.png"
+        },
+        {
+          "imageURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/screenshot2.png"
+        }
+      ],
+      "appPermissions": {
+        "entitlements": [],
+        "privacy": {
+          "NSMicrophoneUsageDescription": "Microphone access is required for real-time speech-to-text dictation directly on your device."
+        }
+      },
+      "versions": [
+        {
+          "version": "1.0.0",
+          "date": "2026-09-08T00:00:00Z",
+          "size": 18500000,
+          "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.0/EdgeEloquent.ipa",
+          "localizedDescription": "Initial release with Google AI Edge multi-model dictation, local cleaner, and Cloudflare text enhancer.",
+          "minOSVersion": "17.0"
+        }
+      ]
+    }
+  ],
+  "news": [
+    {
+      "title": "Edge Eloquent 1.0 Released",
+      "identifier": "edge-eloquent-v1-0-release",
+      "caption": "Minimalist Realtime Dictation powered by Google AI Edge",
+      "date": "2026-09-08T00:00:00Z",
+      "tintColor": "4A90E2",
+      "imageURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/icon.png",
+      "url": "https://github.com/fuckmmw-afk/edge-eloquent",
+      "appID": "com.edgeeloquent.app"
+    }
+  ]
+}

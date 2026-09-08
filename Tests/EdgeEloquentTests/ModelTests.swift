@@ -1,0 +1,97 @@
+//
+//  ModelTests.swift
+//  EdgeEloquentTests
+//
+//  Created by ModelAgent on 2026-09-08.
+//
+
+import XCTest
+@testable import EdgeEloquent
+
+final class ModelTests: XCTestCase {
+    
+    func testOfficialAudioModelsPresence() {
+        let models = ModelInfo.allLiteRTAudioModels
+        let ids = Set(models.map { $0.id })
+        
+        XCTAssertTrue(ids.contains("gemma-4-e2b-it"), "Gemma-4-E2B-it must be supported.")
+        XCTAssertTrue(ids.contains("gemma-4-e4b-it"), "Gemma-4-E4B-it must be supported.")
+        XCTAssertTrue(ids.contains("gemma-3n-e2b-it"), "Gemma-3n-E2B-it must be supported.")
+        XCTAssertTrue(ids.contains("gemma-3n-e4b-it"), "Gemma-3n-E4B-it must be supported.")
+        
+        for model in models {
+            XCTAssertTrue(model.supportsAudio, "Official models must declare audio capability.")
+            XCTAssertTrue(model.modelFile.hasSuffix(".litertlm"), "Official models must be in .litertlm format.")
+            XCTAssertGreaterThan(model.sizeInBytes, 1_000_000_000, "Official models are >1GB.")
+            XCTAssertFalse(model.commitHash.isEmpty, "Pinned commit hash must be defined.")
+            XCTAssertEqual(model.accelerators.llm, .gpu, "LLM must be accelerated on GPU.")
+            XCTAssertEqual(model.accelerators.audio, .cpu, "Audio Conformer must run on CPU.")
+            XCTAssertNotNil(model.downloadURL, "Download URL must be generatable.")
+            XCTAssertTrue(model.downloadURL?.absoluteString.contains("huggingface.co") == true)
+        }
+    }
+    
+    func testGemma4Features() {
+        let gemma4 = ModelInfo.gemma4_E2B
+        XCTAssertEqual(gemma4.maxContextTokens, 32_000)
+        XCTAssertTrue(gemma4.supportsSpeculativeDecoding)
+        XCTAssertTrue(gemma4.supportsThinking)
+        XCTAssertTrue(gemma4.taskTypes.contains(.thinking))
+    }
+    
+    func testGemma3nFeatures() {
+        let gemma3n = ModelInfo.gemma3n_E2B
+        XCTAssertEqual(gemma3n.maxContextTokens, 4_096)
+        XCTAssertFalse(gemma3n.supportsSpeculativeDecoding)
+        XCTAssertFalse(gemma3n.supportsThinking)
+    }
+    
+    func testAppleNativeFallbackModel() {
+        let fallback = ModelInfo.appleNative
+        XCTAssertTrue(fallback.isSystemProvided)
+        XCTAssertEqual(fallback.sizeInBytes, 0)
+        XCTAssertEqual(fallback.formattedSize, "0 MB (Built-in)")
+        XCTAssertNil(fallback.downloadURL)
+        XCTAssertEqual(fallback.accelerators.llm, .neuralEngine)
+    }
+    
+    func testDeviceRAMCompatibility() {
+        let gemma4_2b = ModelInfo.gemma4_E2B // Requires 8 GB
+        XCTAssertFalse(gemma4_2b.isDeviceCompatible(deviceMemoryInGb: 6))
+        XCTAssertTrue(gemma4_2b.isDeviceCompatible(deviceMemoryInGb: 8))
+        XCTAssertTrue(gemma4_2b.isDeviceCompatible(deviceMemoryInGb: 16))
+        
+        let gemma4_4b = ModelInfo.gemma4_E4B // Requires 12 GB
+        XCTAssertFalse(gemma4_4b.isDeviceCompatible(deviceMemoryInGb: 8))
+        XCTAssertTrue(gemma4_4b.isDeviceCompatible(deviceMemoryInGb: 12))
+        XCTAssertTrue(gemma4_4b.isDeviceCompatible(deviceMemoryInGb: 16))
+    }
+    
+    func testEngineLifecycleState() async throws {
+        let engine = LiteRTGemmaEngine(modelInfo: .gemma4_E2B)
+        XCTAssertFalse(engine.isLoaded)
+        
+        // Calling transcribeAudio without loading should throw modelNotLoaded
+        let dummyWAV = Data(repeating: 0, count: 100)
+        do {
+            _ = try await engine.transcribeAudio(wavData: dummyWAV, prompt: nil)
+            XCTFail("Should throw modelNotLoaded")
+        } catch let error as SpeechModelEngineError {
+            XCTAssertEqual(error, .modelNotLoaded)
+        }
+        
+        await engine.unload()
+        XCTAssertFalse(engine.isLoaded)
+    }
+    
+    func testAppleOnDeviceSpeechEngineLifecycle() async throws {
+        let engine = AppleOnDeviceSpeechEngine()
+        XCTAssertFalse(engine.isLoaded)
+        
+        try await engine.load()
+        XCTAssertTrue(engine.isLoaded)
+        
+        await engine.unload()
+        XCTAssertFalse(engine.isLoaded)
+    }
+}

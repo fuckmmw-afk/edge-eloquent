@@ -1,0 +1,70 @@
+# Xcode & Swift Build Artifacts
+.DS_Store
+build/
+.build/
+DerivedData/
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+.swiftpm/
+Package.resolved
+*.ipa
+*.xcarchive
+Payload/
+
+# Private Keys, Certificates & Provisioning Profiles
+*.p8
+*.p12
+*.pem
+*.key
+*.cer
+*.crt
+*.der
+*.keystore
+*.jks
+*.mobileprovision
+
+# Local Configurations, Environment Variables & Secrets
+.env
+.env.*
+*.local
+.dev.vars
+wrangler.secrets
+
+# Strictly Exclude Model Weights & Binary Artifacts (Zero Weights In Repo Invariant)
+*.litertlm
+*.bin
+*.pt
+*.pth
+*.task
+*.safetensors
+*.tflite
+*.onnx
+*.gguf
+*.weights
+*.downloadtmp
+*.gallerytmp
+models/
+Downloads/
+
+# Audio / Scratch Files
+*.wav
+*.mp3
+*.pcm
+*.m4a
+*.flac
+*.ogg
+*.caf
+*.aiff
+scratch/
+tmp/
+
+# Python Cache & Tests
+__pycache__/
+*.pyc
+*.pyo
+
+# Node.js & Cloudflare Wrangler
+node_modules/
+.wrangler/
+package-lock.json
