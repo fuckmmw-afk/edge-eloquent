@@ -114,6 +114,9 @@ public struct HuggingFaceModelMetadata: Codable, Equatable, Sendable {
     /// Pipeline category tag (e.g. "automatic-speech-recognition", "audio-to-text").
     public let pipelineTag: String?
 
+    /// Runtime/library declared by the repository (for example `litert-lm`).
+    public let libraryName: String?
+
     /// List of file artifacts in repository.
     public let siblings: [HuggingFaceSibling]
 
@@ -126,6 +129,7 @@ public struct HuggingFaceModelMetadata: Codable, Equatable, Sendable {
         case sha
         case tags
         case pipelineTag = "pipeline_tag"
+        case libraryName = "library_name"
         case siblings
         case cardData
     }
@@ -136,6 +140,7 @@ public struct HuggingFaceModelMetadata: Codable, Equatable, Sendable {
         sha: String? = nil,
         tags: [String] = [],
         pipelineTag: String? = nil,
+        libraryName: String? = nil,
         siblings: [HuggingFaceSibling] = [],
         cardData: HuggingFaceCardData? = nil
     ) {
@@ -144,6 +149,7 @@ public struct HuggingFaceModelMetadata: Codable, Equatable, Sendable {
         self.sha = sha
         self.tags = tags
         self.pipelineTag = pipelineTag
+        self.libraryName = libraryName
         self.siblings = siblings
         self.cardData = cardData
     }
@@ -155,6 +161,7 @@ public struct HuggingFaceModelMetadata: Codable, Equatable, Sendable {
         self.sha = try container.decodeIfPresent(String.self, forKey: .sha)
         self.tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
         self.pipelineTag = try container.decodeIfPresent(String.self, forKey: .pipelineTag)
+        self.libraryName = try container.decodeIfPresent(String.self, forKey: .libraryName)
         self.siblings = try container.decodeIfPresent([HuggingFaceSibling].self, forKey: .siblings) ?? []
         self.cardData = try container.decodeIfPresent(HuggingFaceCardData.self, forKey: .cardData)
     }
@@ -438,6 +445,9 @@ public final class HuggingFaceSearchService: Sendable {
     ///
     /// Rules derived from Google AI Edge Gallery allowlist criteria:
     /// 1. **Format Invariant:** Must have a `.litertlm` artifact.
+    /// 2. **Runtime Invariant:** Must explicitly declare the LiteRT-LM runtime. The
+    ///    extension alone is insufficient: some fixed LiteRT CompiledModel ASR graphs
+    ///    use `.litertlm` but cannot create a LiteRT-LM Conversation.
     /// 2. **Audio Dictation Invariant:**
     ///    - Explicitly sets `llmSupportAudio: true` in cardData/config, OR
     ///    - Contains audio tags ("audio", "speech", "llm_ask_audio"), OR
@@ -450,6 +460,20 @@ public final class HuggingFaceSearchService: Sendable {
         let hasLitertlm = !litertlmFiles.isEmpty
         if !hasLitertlm {
             reasons.append("Repository lacks a .litertlm LiteRT-LM binary artifact.")
+        }
+
+        let runtimeTags = metadata.tags + (metadata.cardData?.tags ?? [])
+        let normalizedRuntimeTags = runtimeTags.map {
+            $0.lowercased().replacingOccurrences(of: "_", with: "-")
+        }
+        let normalizedLibrary = metadata.libraryName?
+            .lowercased()
+            .replacingOccurrences(of: "_", with: "-")
+        let declaresLiteRTLM = normalizedLibrary == "litert-lm" ||
+            normalizedRuntimeTags.contains("litert-lm") ||
+            normalizedRuntimeTags.contains("litertlm")
+        if !declaresLiteRTLM {
+            reasons.append("Repository does not explicitly declare the LiteRT-LM conversation runtime; a .litertlm filename alone is not sufficient.")
         }
 
         // 2. Audio capability verification
@@ -465,8 +489,9 @@ public final class HuggingFaceSearchService: Sendable {
                                     metadata.pipelineTag == "audio-to-text"
 
         let isOfficialAudioModel = SupportedAudioModel.allModels.contains { model in
-            model.id.caseInsensitiveCompare(metadata.id) == .orderedSame ||
-            model.hfRepo.caseInsensitiveCompare(metadata.id) == .orderedSame
+            model.supportsLiteRTLMConversation &&
+            (model.id.caseInsensitiveCompare(metadata.id) == .orderedSame ||
+             model.hfRepo.caseInsensitiveCompare(metadata.id) == .orderedSame)
         }
 
         let supportsAudio = cardSupportsAudio || tagsSupportAudio || pipelineSupportsAudio || isOfficialAudioModel
@@ -482,10 +507,10 @@ public final class HuggingFaceSearchService: Sendable {
         let commitHash = metadata.sha
         let artifactSHA256 = primaryFile?.lfs?.checksum
 
-        let isCompatible = hasLitertlm && supportsAudio
+        let isCompatible = hasLitertlm && declaresLiteRTLM && supportsAudio
 
         if isCompatible {
-            reasons.append("Model verified for on-device audio dictation pipeline (.litertlm + audio support).")
+            reasons.append("Model verified for on-device audio dictation pipeline (LiteRT-LM runtime + .litertlm + audio support).")
         }
 
         return ModelCompatibilityReport(

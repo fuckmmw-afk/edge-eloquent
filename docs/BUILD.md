@@ -41,7 +41,7 @@
 
 ## 1. Executive Summary & Architectural Invariants
 
-Edge Eloquent is an on-device speech intelligence and dictation engine designed for iOS 17.0+. It uses the official Google AI Edge **LiteRT-LM 0.16.1** Swift package. Its model manager searches Hugging Face and admits only audio-capable `.litertlm` artifacts; Qwen3-ASR 0.6B is the default for 4 GB devices.
+Edge Eloquent is an on-device speech intelligence and dictation engine designed for iOS 17.0+. It uses the official Google AI Edge **LiteRT-LM 0.16.1** Swift package. Its model manager admits only audio-capable `.litertlm` artifacts whose repository explicitly declares the LiteRT-LM conversation runtime. VibeVoice-ASR-BitNet is the 4 GB default.
 
 When building, packaging, and distributing Edge Eloquent, developers and CI systems must strictly respect two fundamental architectural invariants:
 

@@ -20,7 +20,7 @@
       "tintColor": "4A90E2",
       "version": "1.0.6",
       "versionDate": "2026-09-09T15:23:05Z",
-      "versionDescription": "Shows model download state and percentage immediately in both Hugging Face search results and the model library. Progress includes transferred bytes and speed, with throttled UI updates and protection against stale callbacks overwriting completion states.",
+      "versionDescription": "Fixes the Qwen recording failure by rejecting LiteRT CompiledModel artifacts before they reach the LiteRT-LM Conversation API. Hugging Face imports now require an explicit LiteRT-LM runtime declaration; VibeVoice uses deterministic ASR decoding and is the 4 GB default.",
       "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.6/EdgeEloquent.ipa",
       "size": 21033590,
       "screenshotURLs": [

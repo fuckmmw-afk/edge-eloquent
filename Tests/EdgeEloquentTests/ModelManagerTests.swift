@@ -92,7 +92,7 @@ final class ModelManagerTests: XCTestCase {
     func testSupportedAudioModelsCatalogCompleteness() {
         let models = SupportedAudioModel.allModels
 
-        // Compact ASR recommendation plus the two legacy Gemma entries retained for migration.
+        // Three runnable bundles plus Qwen retained only for incompatible-download cleanup.
         XCTAssertEqual(models.count, 4)
 
         let ids = Set(models.map { $0.name })
@@ -110,6 +110,8 @@ final class ModelManagerTests: XCTestCase {
             XCTAssertGreaterThan(model.minRAMBytes, 0, "Model \(model.name) min RAM must be positive")
             XCTAssertFalse(model.sanitizedDirectoryName.contains("/"), "Sanitized directory name must not contain slashes")
         }
+        XCTAssertFalse(SupportedAudioModel.qwen3ASR_06B.supportsLiteRTLMConversation)
+        XCTAssertEqual(SupportedAudioModel.defaultModel, .vibeVoiceASRBitNet)
     }
 
     func testModelLookupByIdOrName() {
@@ -375,7 +377,7 @@ final class ModelManagerTests: XCTestCase {
         let metadata = HuggingFaceModelMetadata(
             id: "example/audio-model",
             sha: "repository-revision",
-            tags: ["audio"],
+            tags: ["audio", "litert-lm"],
             pipelineTag: "automatic-speech-recognition",
             siblings: [
                 HuggingFaceSibling(
@@ -387,6 +389,27 @@ final class ModelManagerTests: XCTestCase {
         let report = HuggingFaceSearchService().verifyCompatibility(metadata: metadata)
         XCTAssertEqual(report.commitHash, "repository-revision")
         XCTAssertEqual(report.artifactSHA256, "artifact-sha256")
+    }
+
+    func testQwenCompiledModelIsRejectedDespiteLitertlmExtension() {
+        let metadata = HuggingFaceModelMetadata(
+            id: "litert-community/Qwen3-ASR-0.6B",
+            sha: "revision",
+            tags: ["tflite", "automatic-speech-recognition", "audio"],
+            pipelineTag: "automatic-speech-recognition",
+            siblings: [
+                HuggingFaceSibling(
+                    rfilename: "qwen3_asr_0.6b_5s_i8.litertlm",
+                    size: 959_627_232
+                )
+            ]
+        )
+
+        let report = HuggingFaceSearchService().verifyCompatibility(metadata: metadata)
+        XCTAssertTrue(report.hasLitertlmFormat)
+        XCTAssertTrue(report.supportsAudio)
+        XCTAssertFalse(report.isCompatible)
+        XCTAssertTrue(report.diagnosticReasons.contains(where: { $0.contains("conversation runtime") }))
     }
 
     // MARK: - ModelManager Lifecycle & State Tests
@@ -404,8 +427,46 @@ final class ModelManagerTests: XCTestCase {
         XCTAssertEqual(manager.downloadedModels.count, 0)
 
         for model in manager.supportedModels {
-            XCTAssertEqual(manager.state(for: model.id), .notDownloaded)
+            if model == .qwen3ASR_06B {
+                guard case .unsupported(let installed, _) = manager.state(for: model.id) else {
+                    return XCTFail("Qwen must be marked unsupported")
+                }
+                XCTAssertFalse(installed)
+            } else {
+                XCTAssertEqual(manager.state(for: model.id), .notDownloaded)
+            }
         }
+    }
+
+    @MainActor
+    func testLegacyQwenSelectionIsPreservedWithoutAppleFallback() throws {
+        let qwen = SupportedAudioModel.qwen3ASR_06B
+        let target = tempDirectoryURL
+            .appendingPathComponent(qwen.sanitizedDirectoryName, isDirectory: true)
+            .appendingPathComponent(qwen.commitHash, isDirectory: true)
+            .appendingPathComponent(qwen.filename)
+        try FileManager.default.createDirectory(
+            at: target.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try Data().write(to: target)
+        let handle = try FileHandle(forWritingTo: target)
+        try handle.truncate(atOffset: UInt64(qwen.expectedBytes))
+        try handle.close()
+        testUserDefaults.set(qwen.id, forKey: ModelManager.activeModelUserDefaultsKey)
+
+        let manager = ModelManager(
+            modelsDirectory: tempDirectoryURL,
+            userDefaults: testUserDefaults
+        )
+
+        XCTAssertEqual(manager.activeModelId, qwen.id)
+        guard case .unsupported(let installed, let reason) = manager.state(for: qwen.id) else {
+            return XCTFail("Qwen must be marked unsupported")
+        }
+        XCTAssertTrue(installed)
+        XCTAssertTrue(reason.contains("CompiledModel"))
+        XCTAssertThrowsError(try manager.setActiveModel(id: qwen.id))
     }
 
     @MainActor

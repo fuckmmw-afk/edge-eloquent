@@ -489,7 +489,7 @@ The built-in catalog provides pinned, checksum-verified starting points. The mod
 
 | Model Name | Model ID / Hugging Face Repository | Artifact Name | Download Size | Minimum RAM | Accelerators | Features |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Qwen3-ASR-0.6B** | `litert-community/Qwen3-ASR-0.6B` | `qwen3_asr_0.6b_5s_i8.litertlm` | 0.96 GB | 4 GB | GPU (LM), CPU (Audio) | Russian + 29 languages, 5-second windows |
+| **Qwen3-ASR-0.6B (legacy/unsupported)** | `litert-community/Qwen3-ASR-0.6B` | fixed CompiledModel graph | 0.96 GB | 4 GB | Separate LiteRT runner required | Cannot create a LiteRT-LM Swift Conversation |
 | **VibeVoice-ASR-BitNet** | `litert-community/VibeVoice-ASR-BitNet` | `VibeVoice-ASR-BitNet.litertlm` | 1.98 GB | 4 GB | GPU/CPU | Efficient dedicated ASR; no declared Russian support |
 | **Gemma-3n-E2B-it** | `google/gemma-3n-E2B-it-litert-lm` | `gemma-3n-E2B-it-int4.litertlm` | 3.66 GB | 6 GB | GPU (LLM), CPU (Audio) | 4K Context, Audio+Vision |
 | **Gemma-3n-E4B-it** | `google/gemma-3n-E4B-it-litert-lm` | `gemma-3n-E4B-it-int4.litertlm` | 4.92 GB | 8 GB | GPU (LLM), CPU (Audio) | 4K Context, High-Capacity |
@@ -498,7 +498,7 @@ Legacy Gemma entries remain available for migration and already-downloaded artif
 
 ### 4.2 Dynamic Model Registry
 
-Search results are inspected through the Hugging Face model API. A result is importable only when metadata exposes an audio-capable `.litertlm` artifact with a known byte size; the repository commit and LFS SHA-256 are stored separately so downloads remain reproducible and verifiable. Imported descriptors are persisted locally.
+Search results are inspected through the Hugging Face model API. A result is importable only when metadata exposes an audio-capable `.litertlm` artifact with a known byte size and explicitly declares LiteRT-LM. This prevents fixed LiteRT `CompiledModel` graphs from being sent to the incompatible `Conversation` API. The repository commit and LFS SHA-256 are stored separately so downloads remain reproducible and verifiable. Imported descriptors are persisted locally.
 
 ```swift
 // Models/ModelRegistry.swift

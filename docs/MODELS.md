@@ -1,10 +1,10 @@
 # Edge Eloquent: Model Ecosystem & Multimodal Infrastructure Specification
 
-**Document Version:** 1.0.6
+**Document Version:** 1.0.7
 **Target Platform:** iOS 17.0+ (Apple Silicon: A14 and newer, M-series)
 **Upstream Runtime:** Google AI Edge LiteRT-LM 0.16.1
 
-> **iOS support note:** The application searches Hugging Face for audio-capable `.litertlm` bundles. Qwen3-ASR 0.6B is the default for 4 GB devices; VibeVoice-ASR-BitNet is the likely approximately 1.87 GB model remembered from AI Edge Gallery discovery. Other file formats are shown as incompatible and cannot be imported into LiteRT-LM.
+> **iOS support note:** The application requires an audio-capable `.litertlm` bundle plus an explicit LiteRT-LM runtime declaration. Qwen3-ASR 0.6B is a fixed LiteRT `CompiledModel` graph and cannot use the Swift `Conversation` API, despite its filename. It remains visible only so affected users can delete it. VibeVoice-ASR-BitNet is the approximately 1.87 GiB LiteRT-LM model and the 4 GB default, but its published language list does not include Russian.
 **Distribution Model:** Dynamic On-Demand Delivery via Hugging Face Hub (Zero IPA Weights)  
 **Date:** September 2026  
 
@@ -28,7 +28,7 @@ Google manages certified edge models through versioned JSON allowlists. Rather t
 
 #### Why Edge Eloquent Combines Search with Pinned Metadata
 The built-in choices provide known repository revisions, exact sizes, and SHA-256 digests. Live Hugging Face search expands that catalog without pretending that every repository can run: only metadata-confirmed audio `.litertlm` artifacts are importable.
-- **4 GB Devices:** Qwen3-ASR 0.6B is the lightweight default and supports Russian.
+- **4 GB Devices:** VibeVoice-ASR-BitNet is the runnable LiteRT-LM default. Its published language list does not include Russian.
 - **Remembered ~1.87 GB Model:** VibeVoice-ASR-BitNet is 1,983,019,248 bytes (1.847 GiB), but its published language list does not include Russian.
 - **Legacy Compatibility:** Gemma 3n E2B/E4B descriptors remain available for existing downloads, though their 6/8 GB recommendations exceed the iPhone 12 memory budget.
 - **Integrity:** The repository commit selects the immutable download revision; the LFS SHA-256 separately verifies the downloaded bytes.
@@ -46,7 +46,7 @@ Edge Eloquent ships no weights. It provides these pinned starting points plus co
 +---------------------------------------------------------------------------------------------------------+
 |  Model Name         | HF Repository                            | Target File          | Size    | RAM   |
 +---------------------+------------------------------------------+----------------------+---------+-------+
-|  Qwen3-ASR-0.6B     | litert-community/Qwen3-ASR-0.6B          | qwen3_asr_0.6b_5s_i8 | 0.96 GB | 4 GB  |
+|  Qwen3-ASR-0.6B     | litert-community/Qwen3-ASR-0.6B          | CompiledModel only   | 0.96 GB | Unsupported by LiteRT-LM Swift |
 |  VibeVoice ASR      | litert-community/VibeVoice-ASR-BitNet    | VibeVoice-ASR-BitNet | 1.98 GB | 4 GB  |
 |  Gemma-3n-E2B-it    | google/gemma-3n-E2B-it-litert-lm         | gemma-3n-E2B-it-int4 | 3.39 GB | 6 GB  |
 |  Gemma-3n-E4B-it    | google/gemma-3n-E4B-it-litert-lm         | gemma-3n-E4B-it-int4 | 4.65 GB | 8 GB  |
@@ -56,7 +56,7 @@ Edge Eloquent ships no weights. It provides these pinned starting points plus co
 
 ### 2.1 Legacy Gemma Research Matrix
 
-The matrix below is retained for architectural research. It is not the v1.0.6 download menu and its Gemma 4 rows are not built-in selectable models.
+The matrix below is retained for architectural research. It is not the v1.0.7 download menu and its Gemma 4 rows are not built-in selectable models.
 
 | Specification | Gemma-4-E2B-it (Recommended) | Gemma-4-E4B-it (High-Capacity) | Gemma-3n-E2B-it (Baseline) | Gemma-3n-E4B-it (Extended) | Apple Native Speech |
 | :--- | :--- | :--- | :--- | :--- | :--- |

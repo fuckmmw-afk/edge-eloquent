@@ -16,7 +16,7 @@ final class ModelTests: XCTestCase {
         
         XCTAssertTrue(ids.contains("gemma-3n-e2b-it"), "Gemma-3n-E2B-it must be supported.")
         XCTAssertTrue(ids.contains("gemma-3n-e4b-it"), "Gemma-3n-E4B-it must be supported.")
-        XCTAssertTrue(ids.contains("qwen3-asr-0.6b"), "Qwen3-ASR-0.6B must be supported.")
+        XCTAssertFalse(ids.contains("qwen3-asr-0.6b"), "Qwen3-ASR must not be offered through the LiteRT-LM Conversation runtime.")
         XCTAssertTrue(ids.contains("vibevoice-asr-bitnet"), "VibeVoice-ASR-BitNet must be supported.")
         
         for model in models {
@@ -58,7 +58,7 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(SupportedAudioModel.gemma3n_E4B_it.minRAMDescription, "8 GB")
     }
 
-    func testCompactASRRecommendationFitsFourGBDevices() {
+    func testQwenLegacyEntryIsExplicitlyRejectedByConversationRuntime() {
         let model = SupportedAudioModel.qwen3ASR_06B
         XCTAssertEqual(model.expectedBytes, 959_627_232)
         XCTAssertEqual(model.minRAMDescription, "4 GB")
@@ -66,6 +66,8 @@ final class ModelTests: XCTestCase {
         XCTAssertFalse(model.llmSupportImage)
         XCTAssertEqual(model.contextWindowTokens, 1_024)
         XCTAssertEqual(model.recommendedAudioWindowSeconds, 5.0)
+        XCTAssertFalse(model.supportsLiteRTLMConversation)
+        XCTAssertTrue(model.runtimeCompatibilityMessage.contains("CompiledModel"))
     }
 
     func testApproximate187GiBModelIdentity() {
@@ -74,6 +76,8 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(model.minRAMDescription, "4 GB")
         XCTAssertEqual(model.expectedSHA256, "5ca907b0343d3e6bd9ec3dbf8aecbcc99b733633ef007a78a7e0f3502010af1b")
         XCTAssertEqual(model.recommendedAudioWindowSeconds, 15.0)
+        XCTAssertTrue(model.supportsLiteRTLMConversation)
+        XCTAssertEqual(SupportedAudioModel.defaultModel, model)
     }
 
     func testLiteRTAudioUsesNativeFilePathByDefault() {

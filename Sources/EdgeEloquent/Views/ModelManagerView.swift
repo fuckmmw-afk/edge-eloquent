@@ -165,7 +165,7 @@ public struct ModelManagerView: View {
                 .disabled(isSearching || searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
 
-            Text("Only audio-capable .litertlm bundles can be imported. Other Hugging Face formats are shown as incompatible instead of being downloaded unusably.")
+            Text("Only audio-capable repositories that explicitly declare the LiteRT-LM conversation runtime can be imported. A .litertlm filename by itself is not enough.")
                 .font(.caption2)
                 .foregroundColor(.secondary)
 
@@ -177,8 +177,8 @@ public struct ModelManagerView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
 
-                Button("Qwen3 ASR · Russian") {
-                    searchQuery = "Qwen3-ASR-0.6B"
+                Button("Gemma 3n · Multilingual") {
+                    searchQuery = "gemma-3n litert-lm"
                     searchHuggingFace()
                 }
                 .buttonStyle(.bordered)
@@ -289,6 +289,8 @@ public struct ModelManagerView: View {
             return "ACTIVE"
         case .error:
             return "ERROR"
+        case .unsupported:
+            return "UNSUPPORTED"
         case .notDownloaded:
             return report.isCompatible ? "COMPATIBLE" : "UNSUPPORTED"
         }
@@ -303,6 +305,8 @@ public struct ModelManagerView: View {
         case .ready, .active:
             return Theme.successGreen
         case .error:
+            return .red
+        case .unsupported:
             return .red
         case .notDownloaded:
             return report.isCompatible ? Theme.successGreen : .red

@@ -89,7 +89,23 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
 
     private func prepareConversation() async throws -> Conversation {
         let engine = try loadedEngine()
-        let conversation = try await engine.createConversation()
+        let config: ConversationConfig?
+        if modelInfo.modelId.caseInsensitiveCompare("litert-community/VibeVoice-ASR-BitNet") == .orderedSame {
+            config = ConversationConfig(
+                samplerConfig: try SamplerConfig(topK: 1, topP: 1.0, temperature: 0.0)
+            )
+        } else {
+            config = nil
+        }
+
+        let conversation: Conversation
+        do {
+            conversation = try engine.createConversation(with: config)
+        } catch {
+            throw SpeechModelEngineError.engineInitializationFailed(
+                reason: "\(modelInfo.name) could not create a LiteRT-LM conversation: \(error.localizedDescription)"
+            )
+        }
         guard registerConversation(conversation, for: engine) else {
             try? conversation.cancel()
             throw SpeechModelEngineError.modelNotLoaded

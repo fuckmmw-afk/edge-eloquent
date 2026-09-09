@@ -158,6 +158,12 @@ public final class DictationCoordinator: ObservableObject {
             )
         }
 
+        guard active.supportsLiteRTLMConversation else {
+            throw SpeechModelEngineError.engineInitializationFailed(
+                reason: "\(active.name): \(active.runtimeCompatibilityMessage)"
+            )
+        }
+
         guard modelManager.isModelDownloaded(active) else {
             throw SpeechModelEngineError.engineInitializationFailed(
                 reason: "Selected model \(active.name) failed its local integrity check. Re-download it in Model Manager."

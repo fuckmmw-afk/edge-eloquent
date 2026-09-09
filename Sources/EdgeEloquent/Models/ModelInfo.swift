@@ -322,7 +322,6 @@ extension ModelInfo {
     
     /// All audio-capable LiteRT-LM models from Google AI Edge Gallery allowlists.
     public static let allLiteRTAudioModels: [ModelInfo] = [
-        qwen3ASR_06B,
         vibeVoiceASRBitNet,
         gemma3n_E2B,
         gemma3n_E4B
@@ -330,15 +329,14 @@ extension ModelInfo {
     
     /// Complete catalog of all supported speech models including the native iOS fallback.
     public static let allSupportedModels: [ModelInfo] = [
-        qwen3ASR_06B,
         vibeVoiceASRBitNet,
         gemma3n_E2B,
         gemma3n_E4B,
         appleNative
     ]
     
-    /// Default active model preset (Gemma 4 E2B-it).
-    public static let defaultModel: ModelInfo = qwen3ASR_06B
+    /// Default active model preset for 4 GB devices using a genuine LiteRT-LM bundle.
+    public static let defaultModel: ModelInfo = vibeVoiceASRBitNet
 }
 
 // MARK: - SupportedAudioModel Interoperability

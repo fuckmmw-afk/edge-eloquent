@@ -144,7 +144,7 @@ jobs:
           p = plistlib.load(open("Payload/EdgeEloquent.app/Info.plist", "rb"))
           assert p.get("CFBundleIdentifier") == "com.edgeeloquent.app", f"Invalid bundle id: {p.get("CFBundleIdentifier")}"
           assert p.get("CFBundleName") == "EdgeEloquent", f"Invalid name: {p.get("CFBundleName")}"
-          assert p.get("CFBundleShortVersionString") == "1.0.6", f"Invalid version: {p.get("CFBundleShortVersionString")}"
+          assert p.get("CFBundleShortVersionString") == "1.0.7", f"Invalid version: {p.get("CFBundleShortVersionString")}"
           print("BUNDLE METADATA VALIDATED:")
           print("  CFBundleName:", p.get("CFBundleName"))
           print("  CFBundleDisplayName:", p.get("CFBundleDisplayName"))
@@ -276,7 +276,7 @@ jobs:
             
             ### 🔒 Privacy & Architecture Notes
             - **Zero Bundled Weights:** The IPA contains the official LiteRT-LM runtime and **NO model weights**.
-            - On-device Gemma 3n speech model weights are downloaded on demand from pinned Hugging Face revisions and verified with SHA-256.
+            - On-device speech model weights are downloaded on demand from pinned Hugging Face revisions and verified with SHA-256.
             - Outbound network requests are structurally quarantined to plain text; raw microphone audio never leaves your Apple Silicon hardware.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

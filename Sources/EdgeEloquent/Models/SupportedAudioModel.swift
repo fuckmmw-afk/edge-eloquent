@@ -116,6 +116,17 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
         ByteCountFormatter.string(fromByteCount: expectedBytes, countStyle: .file)
     }
 
+    /// Whether this artifact can be opened by the bundled LiteRT-LM Conversation API.
+    /// Qwen3-ASR is a LiteRT CompiledModel graph despite its misleading `.litertlm`
+    /// filename and requires a separate ASR runner that LiteRT-LM Swift does not expose.
+    public var supportsLiteRTLMConversation: Bool {
+        id.caseInsensitiveCompare(Self.qwen3ASR_06B.id) != .orderedSame
+    }
+
+    public var runtimeCompatibilityMessage: String {
+        "This repository contains a LiteRT CompiledModel ASR graph, not a LiteRT-LM conversation bundle. It cannot run with the bundled iOS LiteRT-LM runtime. Delete it and use VibeVoice-ASR-BitNet or another repository explicitly tagged litert-lm."
+    }
+
     /// Maximum capture window suited to the artifact's exported audio input.
     /// Qwen's mobile conversion is explicitly fixed to five-second windows.
     public var recommendedAudioWindowSeconds: TimeInterval {
@@ -129,8 +140,8 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
 
     // MARK: - Built-In Supported Model Catalog
 
-    /// Compact multilingual ASR model for memory-constrained phones. Unlike the
-    /// multimodal Gemma models, this bundle is dedicated to five-second speech windows.
+    /// Legacy catalog entry retained so installations affected by v1.0.4-v1.0.6 can
+    /// identify and delete the incompatible download instead of leaving an orphaned file.
     public static let qwen3ASR_06B = SupportedAudioModel(
         id: "litert-community/Qwen3-ASR-0.6B",
         name: "Qwen3-ASR-0.6B",
@@ -144,7 +155,7 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
         contextWindowTokens: 1_024,
         llmSupportAudio: true,
         llmSupportImage: false,
-        modelDescription: "Compact 5-second-window ASR model with Russian and 29 other languages; recommended for iPhone 12."
+        modelDescription: "Unsupported on iOS: this fixed 5-second LiteRT ASR graph requires a CompiledModel runner, not LiteRT-LM Conversation."
     )
 
     /// BitNet speech recognizer matching the approximately 1.87 GiB model exposed by
@@ -256,7 +267,7 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
 
     /// Default model suggested for initial setup on most supported iOS devices.
     public static var defaultModel: SupportedAudioModel {
-        qwen3ASR_06B
+        vibeVoiceASRBitNet
     }
 
     /// Searches predefined models by id, name, or repository slug.

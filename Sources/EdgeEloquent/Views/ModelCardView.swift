@@ -222,6 +222,21 @@ public struct ModelCardView: View {
             .background(Color.red.opacity(0.12))
             .clipShape(Capsule())
             .help(msg)
+
+        case .unsupported(_, let reason):
+            HStack(spacing: 4) {
+                Image(systemName: "nosign")
+                    .font(.caption2)
+                Text("UNSUPPORTED")
+                    .font(.caption2)
+                    .fontWeight(.bold)
+            }
+            .foregroundColor(.red)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color.red.opacity(0.12))
+            .clipShape(Capsule())
+            .help(reason)
         }
     }
 
@@ -305,6 +320,18 @@ public struct ModelCardView: View {
             Text("Preparing weights...")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
+
+        case .unsupported(let installed, let reason):
+            VStack(alignment: .leading, spacing: 4) {
+                Text(installed ? "Installed file cannot be used" : "Unavailable for this runtime")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.red)
+                Text(reason)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }

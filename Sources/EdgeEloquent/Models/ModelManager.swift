@@ -40,11 +40,14 @@ public enum ModelState: Equatable, Sendable {
     case ready
     case active
     case error(String)
+    case unsupported(installed: Bool, reason: String)
 
     public var isDownloaded: Bool {
         switch self {
         case .loading, .ready, .active:
             return true
+        case .unsupported(let installed, _):
+            return installed
         default:
             return false
         }
@@ -301,6 +304,14 @@ public final class ModelManager: ObservableObject {
     /// Scans the models directory and updates `modelStates` according to file existence and integrity.
     public func refreshModelStates() {
         for model in supportedModels {
+            if !model.supportsLiteRTLMConversation {
+                let installed = isModelDownloaded(model)
+                modelStates[model.id] = .unsupported(
+                    installed: installed,
+                    reason: model.runtimeCompatibilityMessage
+                )
+                continue
+            }
             if isModelDownloaded(model) {
                 if activeModelId == model.id {
                     modelStates[model.id] = .active
@@ -317,7 +328,9 @@ public final class ModelManager: ObservableObject {
         }
 
         // Automatically activate first ready downloaded model if no model is currently active
-        if activeModelId == nil, let firstReady = supportedModels.first(where: { isModelDownloaded($0) }) {
+        if activeModelId == nil, let firstReady = supportedModels.first(where: {
+            $0.supportsLiteRTLMConversation && isModelDownloaded($0)
+        }) {
             activeModelId = firstReady.id
             modelStates[firstReady.id] = .active
         }
@@ -404,6 +417,11 @@ public final class ModelManager: ObservableObject {
         _ model: SupportedAudioModel,
         bearerToken: String? = nil
     ) async throws {
+        guard model.supportsLiteRTLMConversation else {
+            let error = ModelManagerError.activationFailed(model.runtimeCompatibilityMessage)
+            lastErrorMessage = error.localizedDescription
+            throw error
+        }
         guard hasSufficientStorage(for: model) else {
             let err = ModelManagerError.insufficientDiskSpace(
                 requiredBytes: model.expectedBytes,
@@ -515,8 +533,12 @@ public final class ModelManager: ObservableObject {
             return
         }
 
-        guard supportedModels.contains(where: { $0.id == id }) else {
+        guard let selectedModel = supportedModels.first(where: { $0.id == id }) else {
             throw ModelManagerError.modelNotFound(id)
+        }
+
+        guard selectedModel.supportsLiteRTLMConversation else {
+            throw ModelManagerError.activationFailed(selectedModel.runtimeCompatibilityMessage)
         }
 
         let currentState = modelStates[id] ?? .notDownloaded
@@ -562,14 +584,20 @@ public final class ModelManager: ObservableObject {
                 activeModelId = savedId
                 return
             }
-            if let model = supportedModels.first(where: { $0.id == savedId }), isModelDownloaded(model) {
+            if let model = supportedModels.first(where: { $0.id == savedId }),
+               isModelDownloaded(model) {
+                // Preserve a legacy Qwen selection long enough to surface the precise
+                // runtime incompatibility. Clearing it here would silently route the
+                // next recording to Apple Speech instead.
                 activeModelId = savedId
                 return
             }
         }
 
         // Default activation: check if any supported model is downloaded, activate first ready
-        if let firstReady = supportedModels.first(where: { isModelDownloaded($0) }) {
+        if let firstReady = supportedModels.first(where: {
+            $0.supportsLiteRTLMConversation && isModelDownloaded($0)
+        }) {
             activeModelId = firstReady.id
         } else {
             activeModelId = nil
