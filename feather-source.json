@@ -103,10 +103,10 @@
   ],
   "news": [
     {
-      "title": "Edge Eloquent 1.0.6 Released",
-      "identifier": "edge-eloquent-v1-0-6-release",
-      "caption": "Visible model download status, percentage, bytes, and speed",
-      "date": "2026-09-09T15:23:05Z",
+      "title": "Edge Eloquent 1.0.7 Released",
+      "identifier": "edge-eloquent-v1-0-7-release",
+      "caption": "Correct LiteRT-LM compatibility checks and deterministic VibeVoice ASR",
+      "date": "2026-09-09T18:39:17Z",
       "tintColor": "4A90E2",
       "imageURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/icon.png",
       "url": "https://github.com/fuckmmw-afk/edge-eloquent",

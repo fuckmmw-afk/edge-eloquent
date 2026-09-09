@@ -94,9 +94,9 @@ Expected output:
   - Repository Name: Edge Eloquent Source
   - Identifier:      com.edgeeloquent.source
   - Apps Registered: 1
-  - Total Releases:  6
-    * Edge Eloquent (com.edgeeloquent.app) - v1.0.6 (21033590 bytes)
-      IPA URL: https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.6/EdgeEloquent.ipa
+  - Total Releases:  7
+    * Edge Eloquent (com.edgeeloquent.app) - v1.0.7 (21039422 bytes)
+      IPA URL: https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.7/EdgeEloquent.ipa
 ```
 
 ---
