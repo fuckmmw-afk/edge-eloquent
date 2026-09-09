@@ -43,6 +43,12 @@ public struct DownloadProgress: Equatable, Sendable {
         let total = ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
         return "\(written) / \(total)"
     }
+
+    /// Stable whole-number percentage for compact status labels.
+    public var formattedPercent: String {
+        let clamped = min(1.0, max(0.0, fractionCompleted))
+        return "\(Int((clamped * 100).rounded()))%"
+    }
 }
 
 /// Errors produced during model download, validation, or persistence operations.
@@ -107,6 +113,7 @@ public final class ModelRepoDownloader: NSObject, URLSessionDataDelegate, @unche
         let progressHandler: (@Sendable (DownloadProgress) -> Void)?
         var continuation: CheckedContinuation<URL, Error>?
         var lastSpeedTime: Date = Date()
+        var lastProgressEmissionTime: Date = .distantPast
         var lastBytesCount: Int64 = 0
         var currentSpeed: Double = 0
 
@@ -277,16 +284,17 @@ public final class ModelRepoDownloader: NSObject, URLSessionDataDelegate, @unche
             taskLookup[task.taskIdentifier] = model.id
             lock.unlock()
 
-            // Initial progress notification
-            if existingBytes > 0 {
-                let initialFraction = Double(existingBytes) / Double(model.expectedBytes)
-                progressHandler?(DownloadProgress(
-                    fractionCompleted: min(1.0, initialFraction),
-                    bytesWritten: existingBytes,
-                    totalBytes: model.expectedBytes,
-                    speedBytesPerSecond: 0
-                ))
-            }
+            // Always publish an initial snapshot so the UI can show 0% while the
+            // request follows redirects or waits for its first response bytes.
+            let initialFraction = model.expectedBytes > 0
+                ? Double(existingBytes) / Double(model.expectedBytes)
+                : 0
+            progressHandler?(DownloadProgress(
+                fractionCompleted: min(1.0, max(0.0, initialFraction)),
+                bytesWritten: existingBytes,
+                totalBytes: model.expectedBytes,
+                speedBytesPerSecond: 0
+            ))
 
             task.resume()
         }
@@ -574,9 +582,15 @@ public final class ModelRepoDownloader: NSObject, URLSessionDataDelegate, @unche
                 speedBytesPerSecond: context.currentSpeed
             )
             let handler = context.progressHandler
+            let shouldEmitProgress = now.timeIntervalSince(context.lastProgressEmissionTime) >= 0.1 || fraction >= 1.0
+            if shouldEmitProgress {
+                context.lastProgressEmissionTime = now
+            }
             lock.unlock()
 
-            handler?(progress)
+            if shouldEmitProgress {
+                handler?(progress)
+            }
         } catch {
             let cont = context.continuation
             context.continuation = nil

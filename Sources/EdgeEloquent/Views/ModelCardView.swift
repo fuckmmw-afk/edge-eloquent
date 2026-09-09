@@ -81,22 +81,28 @@ public struct ModelCardView: View {
             }
 
             // Download Progress Bar (when downloading)
-            if state.isDownloading, let p = progress {
+            if let fraction = state.downloadFraction {
                 VStack(spacing: 6) {
-                    ProgressView(value: p.fractionCompleted)
+                    ProgressView(value: fraction)
                         .tint(Theme.edgeBlue)
 
                     HStack {
-                        Text(p.formattedBytesTransfer)
+                        Text(progress?.formattedBytesTransfer ?? "Waiting for data…")
                             .font(.caption2)
                             .foregroundColor(.secondary)
 
                         Spacer()
 
-                        Text(p.formattedSpeed)
+                        Text(progress?.formattedPercent ?? Self.formattedPercent(fraction))
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .monospacedDigit()
+                            .foregroundColor(Theme.edgeBlue)
+
+                        Text(progress?.formattedSpeed ?? "—/s")
                             .font(.caption2)
                             .fontWeight(.medium)
-                            .foregroundColor(Theme.edgeBlue)
+                            .foregroundColor(.secondary)
                     }
                 }
                 .padding(.vertical, 4)
@@ -166,10 +172,10 @@ public struct ModelCardView: View {
                 .background(Color.secondary.opacity(0.12))
                 .clipShape(Capsule())
 
-        case .downloading:
+        case .downloading(let fraction):
             HStack(spacing: 4) {
                 ProgressView().controlSize(.mini)
-                Text("DOWNLOADING")
+                Text("DOWNLOADING \(Self.formattedPercent(fraction))")
                     .font(.caption2)
                     .fontWeight(.semibold)
                     .foregroundColor(Theme.edgeBlue)
@@ -232,6 +238,11 @@ public struct ModelCardView: View {
         .padding(.vertical, 4)
         .background(Color.primary.opacity(0.05))
         .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
+    private static func formattedPercent(_ fraction: Double) -> String {
+        let clamped = min(1.0, max(0.0, fraction))
+        return "\(Int((clamped * 100).rounded()))%"
     }
 
     @ViewBuilder

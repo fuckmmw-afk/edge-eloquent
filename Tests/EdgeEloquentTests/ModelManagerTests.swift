@@ -221,6 +221,7 @@ final class ModelManagerTests: XCTestCase {
         XCTAssertEqual(progress.totalBytes, 1_000_000_000)
         XCTAssertTrue(progress.formattedSpeed.contains("/s"))
         XCTAssertTrue(progress.formattedBytesTransfer.contains("/"))
+        XCTAssertEqual(progress.formattedPercent, "75%")
     }
 
     // MARK: - HuggingFaceSearchService Tests

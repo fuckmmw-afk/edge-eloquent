@@ -59,6 +59,12 @@ public enum ModelState: Equatable, Sendable {
         if case .downloading = self { return true }
         return false
     }
+
+    /// Current normalized download fraction when a transfer is active.
+    public var downloadFraction: Double? {
+        guard case .downloading(let progress) = self else { return nil }
+        return min(1.0, max(0.0, progress))
+    }
 }
 
 /// Multi-model orchestrator for Edge Eloquent.
@@ -407,7 +413,14 @@ public final class ModelManager: ObservableObject {
             throw err
         }
 
+        let initialProgress = DownloadProgress(
+            fractionCompleted: 0.0,
+            bytesWritten: 0,
+            totalBytes: model.expectedBytes,
+            speedBytesPerSecond: 0
+        )
         modelStates[model.id] = .downloading(progress: 0.0)
+        setDownloadProgress(initialProgress, for: model.id)
         lastErrorMessage = nil
 
         do {
@@ -417,8 +430,7 @@ public final class ModelManager: ObservableObject {
                 bearerToken: bearerToken
             ) { [weak self] progress in
                 Task { @MainActor [weak self] in
-                    self?.downloadProgresses[model.id] = progress
-                    self?.modelStates[model.id] = .downloading(progress: progress.fractionCompleted)
+                    self?.setDownloadProgress(progress, for: model.id)
                 }
             }
 
@@ -441,6 +453,22 @@ public final class ModelManager: ObservableObject {
                 throw error
             }
         }
+    }
+
+    /// Replaces the published dictionaries instead of mutating a nested subscript.
+    /// This guarantees a SwiftUI change notification for every progress snapshot.
+    private func setDownloadProgress(_ progress: DownloadProgress, for modelId: String) {
+        // Ignore a callback queued just before completion, cancellation, or failure.
+        // Otherwise it can overwrite READY/ERROR with a stale DOWNLOADING state.
+        guard modelStates[modelId]?.isDownloading == true else { return }
+
+        var updatedProgresses = downloadProgresses
+        updatedProgresses[modelId] = progress
+        downloadProgresses = updatedProgresses
+
+        var updatedStates = modelStates
+        updatedStates[modelId] = .downloading(progress: progress.fractionCompleted)
+        modelStates = updatedStates
     }
 
     /// Pauses an ongoing model download.

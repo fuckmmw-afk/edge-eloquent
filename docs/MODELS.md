@@ -1,6 +1,6 @@
 # Edge Eloquent: Model Ecosystem & Multimodal Infrastructure Specification
 
-**Document Version:** 1.0.5
+**Document Version:** 1.0.6
 **Target Platform:** iOS 17.0+ (Apple Silicon: A14 and newer, M-series)
 **Upstream Runtime:** Google AI Edge LiteRT-LM 0.16.1
 
@@ -56,7 +56,7 @@ Edge Eloquent ships no weights. It provides these pinned starting points plus co
 
 ### 2.1 Legacy Gemma Research Matrix
 
-The matrix below is retained for architectural research. It is not the v1.0.5 download menu and its Gemma 4 rows are not built-in selectable models.
+The matrix below is retained for architectural research. It is not the v1.0.6 download menu and its Gemma 4 rows are not built-in selectable models.
 
 | Specification | Gemma-4-E2B-it (Recommended) | Gemma-4-E4B-it (High-Capacity) | Gemma-3n-E2B-it (Baseline) | Gemma-3n-E4B-it (Extended) | Apple Native Speech |
 | :--- | :--- | :--- | :--- | :--- | :--- |

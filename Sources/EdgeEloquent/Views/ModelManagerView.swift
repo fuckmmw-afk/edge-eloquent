@@ -194,7 +194,11 @@ public struct ModelManagerView: View {
     }
 
     private func searchResultCard(_ report: ModelCompatibilityReport) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let importedModel = modelManager.supportedModels.first { $0.id == report.modelId }
+        let state = modelManager.state(for: report.modelId)
+        let progress = modelManager.downloadProgresses[report.modelId]
+
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(report.modelId)
@@ -208,10 +212,28 @@ public struct ModelManagerView: View {
                     }
                 }
                 Spacer()
-                Text(report.isCompatible ? "COMPATIBLE" : "UNSUPPORTED")
+                Text(searchResultStatus(report: report, state: state, progress: progress))
                     .font(.caption2)
                     .fontWeight(.bold)
-                    .foregroundColor(report.isCompatible ? Theme.successGreen : .red)
+                    .monospacedDigit()
+                    .foregroundColor(searchResultStatusColor(report: report, state: state))
+            }
+
+            if let fraction = state.downloadFraction {
+                VStack(alignment: .leading, spacing: 4) {
+                    ProgressView(value: fraction)
+                        .tint(Theme.edgeBlue)
+
+                    HStack {
+                        Text(progress?.formattedBytesTransfer ?? "Waiting for data…")
+                        Spacer()
+                        Text(progress?.formattedPercent ?? "\(Int((fraction * 100).rounded()))%")
+                            .fontWeight(.bold)
+                            .foregroundColor(Theme.edgeBlue)
+                    }
+                    .font(.caption2)
+                    .monospacedDigit()
+                }
             }
 
             HStack {
@@ -221,10 +243,21 @@ public struct ModelManagerView: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                if report.isCompatible {
-                    Button("Add & Download") { importAndDownload(report) }
+                if report.isCompatible && !state.isDownloading && !state.isDownloaded {
+                    Button(importedModel == nil ? "Add & Download" : "Download") {
+                        if let importedModel {
+                            handleDownload(importedModel)
+                        } else {
+                            importAndDownload(report)
+                        }
+                    }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
+                } else if state.isDownloaded {
+                    Text(state.isActive ? "Active" : "Installed")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Theme.successGreen)
                 }
             }
 
@@ -237,6 +270,43 @@ public struct ModelManagerView: View {
         .padding(10)
         .background(Color.primary.opacity(0.04))
         .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func searchResultStatus(
+        report: ModelCompatibilityReport,
+        state: ModelState,
+        progress: DownloadProgress?
+    ) -> String {
+        switch state {
+        case .downloading(let fraction):
+            let percent = progress?.formattedPercent ?? "\(Int((fraction * 100).rounded()))%"
+            return "DOWNLOADING \(percent)"
+        case .loading:
+            return "LOADING"
+        case .ready:
+            return "READY"
+        case .active:
+            return "ACTIVE"
+        case .error:
+            return "ERROR"
+        case .notDownloaded:
+            return report.isCompatible ? "COMPATIBLE" : "UNSUPPORTED"
+        }
+    }
+
+    private func searchResultStatusColor(report: ModelCompatibilityReport, state: ModelState) -> Color {
+        switch state {
+        case .downloading:
+            return Theme.edgeBlue
+        case .loading:
+            return Theme.processingAmber
+        case .ready, .active:
+            return Theme.successGreen
+        case .error:
+            return .red
+        case .notDownloaded:
+            return report.isCompatible ? Theme.successGreen : .red
+        }
     }
 
     private func searchHuggingFace() {
