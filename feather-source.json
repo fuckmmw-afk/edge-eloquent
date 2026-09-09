@@ -18,11 +18,11 @@
       "localizedDescription": "Private iOS dictation powered by the official Google AI Edge LiteRT-LM runtime and iOS-validated Gemma 3n models. Model artifacts are downloaded on demand and verified with SHA-256. Optional cloud text enhancement and web search are disabled by default. Audio never leaves the device.",
       "iconURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/icon.png",
       "tintColor": "4A90E2",
-      "version": "1.0.2",
-      "versionDate": "2026-09-09T06:58:46Z",
+      "version": "1.0.3",
+      "versionDate": "2026-09-09T10:13:35Z",
       "versionDescription": "Fixes on-device speech recognition: recording now starts before cold model loading, buffered audio is preserved, LiteRT uses validated file-backed WAV input, and iOS memory use is reduced.",
-      "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.2/EdgeEloquent.ipa",
-      "size": 20994373,
+      "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.3/EdgeEloquent.ipa",
+      "size": 20995919,
       "screenshotURLs": [
         "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/screenshot1.png",
         "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/screenshot2.png"
@@ -42,6 +42,14 @@
         }
       },
       "versions": [
+        {
+          "version": "1.0.3",
+          "date": "2026-09-09T10:13:35Z",
+          "size": 20995919,
+          "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.3/EdgeEloquent.ipa",
+          "localizedDescription": "Fixes on-device speech recognition: recording now starts before cold model loading, buffered audio is preserved, LiteRT uses validated file-backed WAV input, and iOS memory use is reduced.",
+          "minOSVersion": "17.0"
+        },
         {
           "version": "1.0.2",
           "date": "2026-09-09T06:58:46Z",
