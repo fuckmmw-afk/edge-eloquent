@@ -20,7 +20,7 @@
       "tintColor": "4A90E2",
       "version": "1.0.3",
       "versionDate": "2026-09-09T10:13:35Z",
-      "versionDescription": "Fixes on-device speech recognition: recording now starts before cold model loading, buffered audio is preserved, LiteRT uses validated file-backed WAV input, and iOS memory use is reduced.",
+      "versionDescription": "Keeps the selected Gemma transcription engine active, surfaces the original LiteRT loading error instead of silently switching engines, and reports unavailable Apple on-device language support clearly.",
       "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.3/EdgeEloquent.ipa",
       "size": 20995919,
       "screenshotURLs": [
@@ -47,7 +47,7 @@
           "date": "2026-09-09T10:13:35Z",
           "size": 20995919,
           "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.3/EdgeEloquent.ipa",
-          "localizedDescription": "Fixes on-device speech recognition: recording now starts before cold model loading, buffered audio is preserved, LiteRT uses validated file-backed WAV input, and iOS memory use is reduced.",
+          "localizedDescription": "Keeps the selected Gemma transcription engine active, surfaces the original LiteRT loading error instead of silently switching engines, and reports unavailable Apple on-device language support clearly.",
           "minOSVersion": "17.0"
         },
         {
@@ -71,10 +71,10 @@
   ],
   "news": [
     {
-      "title": "Edge Eloquent 1.0.2 Released",
-      "identifier": "edge-eloquent-v1-0-2-release",
-      "caption": "Critical on-device speech recognition fix",
-      "date": "2026-09-09T06:58:46Z",
+      "title": "Edge Eloquent 1.0.3 Released",
+      "identifier": "edge-eloquent-v1-0-3-release",
+      "caption": "Selected-engine stability and Apple Speech diagnostics",
+      "date": "2026-09-09T10:13:35Z",
       "tintColor": "4A90E2",
       "imageURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/icon.png",
       "url": "https://github.com/fuckmmw-afk/edge-eloquent",
