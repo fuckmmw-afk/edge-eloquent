@@ -18,11 +18,11 @@
       "localizedDescription": "Private iOS dictation powered by the official Google AI Edge LiteRT-LM runtime and compatible audio models from Hugging Face. Model artifacts are downloaded on demand and verified with SHA-256. Optional cloud text enhancement and web search are disabled by default. Audio never leaves the device.",
       "iconURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/icon.png",
       "tintColor": "4A90E2",
-      "version": "1.0.5",
-      "versionDate": "2026-09-09T12:02:48Z",
+      "version": "1.0.6",
+      "versionDate": "2026-09-09T15:23:05Z",
       "versionDescription": "Adds Hugging Face audio-model search and lightweight ASR for 4 GB iPhones. Qwen3-ASR 0.6B uses its required five-second audio windows for low-latency Russian transcription; VibeVoice ASR BitNet matches the remembered approximately 1.87 GB model.",
-      "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.5/EdgeEloquent.ipa",
-      "size": 21027763,
+      "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.6/EdgeEloquent.ipa",
+      "size": 21033590,
       "screenshotURLs": [
         "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/screenshot1.png",
         "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/screenshot2.png"
@@ -42,6 +42,14 @@
         }
       },
       "versions": [
+        {
+          "version": "1.0.6",
+          "date": "2026-09-09T15:23:05Z",
+          "size": 21033590,
+          "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.6/EdgeEloquent.ipa",
+          "localizedDescription": "Adds Hugging Face audio-model search and lightweight ASR for 4 GB iPhones. Qwen3-ASR 0.6B uses its required five-second audio windows for low-latency Russian transcription; VibeVoice ASR BitNet matches the remembered approximately 1.87 GB model.",
+          "minOSVersion": "17.0"
+        },
         {
           "version": "1.0.5",
           "date": "2026-09-09T12:02:48Z",
