@@ -119,6 +119,42 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
 
     // MARK: - Official Supported Model Catalog
 
+    /// Compact multilingual ASR model for memory-constrained phones. Unlike the
+    /// multimodal Gemma models, this bundle is dedicated to five-second speech windows.
+    public static let qwen3ASR_06B = SupportedAudioModel(
+        id: "litert-community/Qwen3-ASR-0.6B",
+        name: "Qwen3-ASR-0.6B",
+        hfRepo: "litert-community/Qwen3-ASR-0.6B",
+        filename: "qwen3_asr_0.6b_5s_i8.litertlm",
+        commitHash: "80384dfbad4a6cd0c698892395c4664fd122c081",
+        expectedBytes: 959_627_232,
+        expectedSHA256: "d4444d51f0c08142f57e16097673150f3ea02900a00b29a58a41f6e7578db251",
+        minRAMBytes: 4_294_967_296,
+        minRAMDescription: "4 GB",
+        contextWindowTokens: 1_024,
+        llmSupportAudio: true,
+        llmSupportImage: false,
+        modelDescription: "Compact 5-second-window ASR model with Russian and 29 other languages; recommended for iPhone 12."
+    )
+
+    /// BitNet speech recognizer matching the approximately 1.87 GiB model exposed by
+    /// Google AI Edge Gallery's Hugging Face model discovery flow.
+    public static let vibeVoiceASRBitNet = SupportedAudioModel(
+        id: "litert-community/VibeVoice-ASR-BitNet",
+        name: "VibeVoice-ASR-BitNet",
+        hfRepo: "litert-community/VibeVoice-ASR-BitNet",
+        filename: "VibeVoice-ASR-BitNet.litertlm",
+        commitHash: "4c72febccd72b2fc40eaad28275353d4cdb9166d",
+        expectedBytes: 1_983_019_248,
+        expectedSHA256: "5ca907b0343d3e6bd9ec3dbf8aecbcc99b733633ef007a78a7e0f3502010af1b",
+        minRAMBytes: 4_294_967_296,
+        minRAMDescription: "4 GB",
+        contextWindowTokens: 2_048,
+        llmSupportAudio: true,
+        llmSupportImage: false,
+        modelDescription: "Efficient BitNet ASR (~1.85 GiB) for English, Chinese, French, Italian, Korean, Portuguese, and Vietnamese."
+    )
+
     /// Gemma 4 2B parameter instruction-tuned multimodal model (32K context, MTP speculative decoding).
     public static let gemma4_E2B_it = SupportedAudioModel(
         id: "litert-community/gemma-4-E2B-it-litert-lm",
@@ -202,13 +238,15 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
 
     /// Pre-configured list of all officially verified audio-capable models.
     public static let allPredefined: [SupportedAudioModel] = [
+        qwen3ASR_06B,
+        vibeVoiceASRBitNet,
         gemma3n_E2B_it,
         gemma3n_E4B_it
     ]
 
     /// Default model suggested for initial setup on most supported iOS devices.
     public static var defaultModel: SupportedAudioModel {
-        gemma3n_E2B_it
+        qwen3ASR_06B
     }
 
     /// Searches predefined models by id, name, or repository slug.
@@ -220,5 +258,40 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
             model.hfRepo.lowercased() == q ||
             model.filename.lowercased() == q
         }
+    }
+
+    /// Converts verified Hugging Face metadata into a persistable downloadable model.
+    public init?(compatibilityReport report: ModelCompatibilityReport) {
+        guard report.isCompatible,
+              let filename = report.modelFilename,
+              let expectedBytes = report.fileSizeBytes,
+              expectedBytes > 0,
+              let revision = report.commitHash,
+              !revision.isEmpty else {
+            return nil
+        }
+
+        let estimatedRAMGb: Int64
+        switch expectedBytes {
+        case ...2_100_000_000: estimatedRAMGb = 4
+        case ...3_700_000_000: estimatedRAMGb = 6
+        default: estimatedRAMGb = 8
+        }
+
+        self.init(
+            id: report.modelId,
+            name: report.modelId.split(separator: "/").last.map(String.init) ?? report.modelId,
+            hfRepo: report.modelId,
+            filename: filename,
+            commitHash: revision,
+            expectedBytes: expectedBytes,
+            expectedSHA256: report.artifactSHA256,
+            minRAMBytes: estimatedRAMGb * 1_073_741_824,
+            minRAMDescription: "\(estimatedRAMGb) GB estimated",
+            contextWindowTokens: 1_024,
+            llmSupportAudio: true,
+            llmSupportImage: false,
+            modelDescription: "Audio-capable LiteRT-LM model imported from Hugging Face. Compatibility is based on repository metadata."
+        )
     }
 }

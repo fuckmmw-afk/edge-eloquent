@@ -26,6 +26,8 @@ class SpeechPipelineRegressionTests(unittest.TestCase):
         self.assertIn("conversation.sendMessage(", source)
         self.assertNotIn("conversation.sendMessageStream(", source)
         self.assertIn("WAVEncoder.validateWAVHeader(wavData)", source)
+        self.assertIn('caseInsensitiveCompare("litert-community/VibeVoice-ASR-BitNet")', source)
+        self.assertIn("seconds audio, please transcribe it", source)
 
     def test_downloadable_models_use_memory_safe_context(self):
         source = (REPO_ROOT / "Sources/EdgeEloquent/Models/SupportedAudioModel.swift").read_text()

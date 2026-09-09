@@ -37,13 +37,19 @@ public struct HuggingFaceLFS: Codable, Equatable, Hashable, Sendable {
     /// Git LFS Object Identifier (SHA-256 commit hash).
     public let oid: String?
 
+    /// Current Hugging Face API name for the LFS object's SHA-256 digest.
+    public let sha256: String?
+
     /// File size in bytes.
     public let size: Int64?
 
-    public init(oid: String?, size: Int64?) {
+    public init(oid: String? = nil, sha256: String? = nil, size: Int64?) {
         self.oid = oid
+        self.sha256 = sha256
         self.size = size
     }
+
+    public var checksum: String? { sha256 ?? oid }
 }
 
 /// Card metadata containing model capabilities.
@@ -190,6 +196,9 @@ public struct ModelCompatibilityReport: Equatable, Sendable {
     /// Commit hash / Git LFS OID.
     public let commitHash: String?
 
+    /// SHA-256 of the selected LFS artifact, independent from the repository revision.
+    public let artifactSHA256: String?
+
     /// Detailed diagnostic reasons for compatibility verdict.
     public let diagnosticReasons: [String]
 
@@ -201,6 +210,7 @@ public struct ModelCompatibilityReport: Equatable, Sendable {
         modelFilename: String?,
         fileSizeBytes: Int64?,
         commitHash: String?,
+        artifactSHA256: String? = nil,
         diagnosticReasons: [String]
     ) {
         self.modelId = modelId
@@ -210,6 +220,7 @@ public struct ModelCompatibilityReport: Equatable, Sendable {
         self.modelFilename = modelFilename
         self.fileSizeBytes = fileSizeBytes
         self.commitHash = commitHash
+        self.artifactSHA256 = artifactSHA256
         self.diagnosticReasons = diagnosticReasons
     }
 }
@@ -319,6 +330,108 @@ public final class HuggingFaceSearchService: Sendable {
         }
     }
 
+    /// Searches the Hub and resolves each result to full blob metadata. Results include
+    /// incompatible repositories so the UI can explain why a model cannot be imported.
+    public func searchAudioModels(
+        query: String,
+        bearerToken: String? = nil,
+        limit: Int = 20
+    ) async throws -> [ModelCompatibilityReport] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+
+        guard var components = URLComponents(
+            url: baseURL.appendingPathComponent("api/models"),
+            resolvingAgainstBaseURL: true
+        ) else {
+            throw HuggingFaceServiceError.invalidURL(query)
+        }
+        components.queryItems = [
+            URLQueryItem(name: "search", value: trimmed),
+            URLQueryItem(name: "limit", value: String(max(1, min(limit, 50)))),
+            URLQueryItem(name: "sort", value: "downloads"),
+            URLQueryItem(name: "direction", value: "-1"),
+            URLQueryItem(name: "full", value: "true"),
+            URLQueryItem(name: "config", value: "true")
+        ]
+        guard let url = components.url else {
+            throw HuggingFaceServiceError.invalidURL(query)
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("AIEdgeGallery/1.0 (iOS) EdgeEloquent/1.0", forHTTPHeaderField: "User-Agent")
+        if let bearerToken, !bearerToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw HuggingFaceServiceError.networkError(error.localizedDescription)
+        }
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            throw HuggingFaceServiceError.invalidResponse(
+                statusCode: status,
+                message: HTTPURLResponse.localizedString(forStatusCode: status)
+            )
+        }
+
+        let generalSummaries: [HuggingFaceModelMetadata]
+        do {
+            generalSummaries = try JSONDecoder().decode([HuggingFaceModelMetadata].self, from: data)
+        } catch {
+            throw HuggingFaceServiceError.decodingError(error.localizedDescription)
+        }
+
+        // Popular base repositories often crowd converted mobile artifacts out of the
+        // first page. Merge the LiteRT Community results while retaining unrestricted
+        // Hub results, so exact searches still work for any publisher.
+        var communityComponents = components
+        communityComponents.queryItems?.append(URLQueryItem(name: "author", value: "litert-community"))
+        var communitySummaries: [HuggingFaceModelMetadata] = []
+        if let communityURL = communityComponents.url {
+            var communityRequest = URLRequest(url: communityURL)
+            communityRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+            if let bearerToken, !bearerToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                communityRequest.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
+            }
+            if let communityResult = try? await session.data(for: communityRequest),
+               (communityResult.1 as? HTTPURLResponse)?.statusCode == 200 {
+                communitySummaries = (try? JSONDecoder().decode(
+                    [HuggingFaceModelMetadata].self,
+                    from: communityResult.0
+                )) ?? []
+            }
+        }
+
+        var seenIds = Set<String>()
+        let summaries = (communitySummaries + generalSummaries).filter {
+            seenIds.insert($0.id).inserted
+        }
+
+        return await withTaskGroup(of: (Int, ModelCompatibilityReport?).self) { group in
+            for (index, summary) in summaries.enumerated() {
+                group.addTask { [self] in
+                    let report = try? await fetchAndVerifyModel(
+                        modelId: summary.id,
+                        bearerToken: bearerToken
+                    )
+                    return (index, report)
+                }
+            }
+
+            var indexed: [(Int, ModelCompatibilityReport)] = []
+            for await (index, report) in group {
+                if let report { indexed.append((index, report)) }
+            }
+            return indexed.sorted { $0.0 < $1.0 }.map(\.1)
+        }
+    }
+
     // MARK: - Compatibility Verification
 
     /// Verifies model compatibility for the Edge Eloquent on-device audio dictation pipeline.
@@ -364,7 +477,10 @@ public final class HuggingFaceSearchService: Sendable {
 
         let primaryFile = litertlmFiles.first
         let resolvedSize = primaryFile?.resolvedSize
-        let commitHash = primaryFile?.lfs?.oid ?? metadata.sha
+        // Repository revision and LFS checksum are different identifiers. Using the
+        // LFS digest as a /resolve/{revision}/ URL produces a 404 for imported models.
+        let commitHash = metadata.sha
+        let artifactSHA256 = primaryFile?.lfs?.checksum
 
         let isCompatible = hasLitertlm && supportsAudio
 
@@ -380,6 +496,7 @@ public final class HuggingFaceSearchService: Sendable {
             modelFilename: primaryFile?.rfilename,
             fileSizeBytes: resolvedSize,
             commitHash: commitHash,
+            artifactSHA256: artifactSHA256,
             diagnosticReasons: reasons
         )
     }

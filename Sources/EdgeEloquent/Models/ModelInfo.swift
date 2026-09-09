@@ -135,6 +135,39 @@ public struct ModelInfo: Identifiable, Sendable, Codable, Hashable, Equatable {
 // MARK: - Computed Properties & Helpers
 
 extension ModelInfo {
+    /// Compact multilingual speech recognizer intended for 4 GB phones.
+    public static let qwen3ASR_06B = ModelInfo(
+        id: "qwen3-asr-0.6b",
+        name: "Qwen3-ASR-0.6B",
+        modelId: "litert-community/Qwen3-ASR-0.6B",
+        modelFile: "qwen3_asr_0.6b_5s_i8.litertlm",
+        sizeInBytes: 959_627_232,
+        minDeviceMemoryInGb: 4,
+        commitHash: "80384dfbad4a6cd0c698892395c4664fd122c081",
+        accelerators: ModelAccelerators(llm: .gpu, audio: .cpu, vision: nil),
+        taskTypes: [.askAudio, .transcription],
+        maxContextTokens: 1_024,
+        maxOutputTokens: 256,
+        supportsAudio: true,
+        supportsVision: false
+    )
+
+    public static let vibeVoiceASRBitNet = ModelInfo(
+        id: "vibevoice-asr-bitnet",
+        name: "VibeVoice-ASR-BitNet",
+        modelId: "litert-community/VibeVoice-ASR-BitNet",
+        modelFile: "VibeVoice-ASR-BitNet.litertlm",
+        sizeInBytes: 1_983_019_248,
+        minDeviceMemoryInGb: 4,
+        commitHash: "4c72febccd72b2fc40eaad28275353d4cdb9166d",
+        accelerators: ModelAccelerators(llm: .gpu, audio: .cpu, vision: nil),
+        taskTypes: [.askAudio, .transcription],
+        maxContextTokens: 2_048,
+        maxOutputTokens: 512,
+        supportsAudio: true,
+        supportsVision: false
+    )
+
     /// Formatted human-readable file size (e.g. "2.59 GB").
     public var formattedSize: String {
         if isSystemProvided || sizeInBytes == 0 {
@@ -289,19 +322,23 @@ extension ModelInfo {
     
     /// All audio-capable LiteRT-LM models from Google AI Edge Gallery allowlists.
     public static let allLiteRTAudioModels: [ModelInfo] = [
+        qwen3ASR_06B,
+        vibeVoiceASRBitNet,
         gemma3n_E2B,
         gemma3n_E4B
     ]
     
     /// Complete catalog of all supported speech models including the native iOS fallback.
     public static let allSupportedModels: [ModelInfo] = [
+        qwen3ASR_06B,
+        vibeVoiceASRBitNet,
         gemma3n_E2B,
         gemma3n_E4B,
         appleNative
     ]
     
     /// Default active model preset (Gemma 4 E2B-it).
-    public static let defaultModel: ModelInfo = gemma3n_E2B
+    public static let defaultModel: ModelInfo = qwen3ASR_06B
 }
 
 // MARK: - SupportedAudioModel Interoperability
@@ -327,7 +364,7 @@ extension ModelInfo {
             accelerators: ModelAccelerators(llm: .gpu, audio: .cpu, vision: supportedModel.llmSupportImage ? .gpu : nil),
             taskTypes: taskTypes,
             maxContextTokens: supportedModel.contextWindowTokens,
-            maxOutputTokens: 4_000,
+            maxOutputTokens: supportedModel.contextWindowTokens <= 1_024 ? 256 : 1_024,
             supportsAudio: supportedModel.llmSupportAudio,
             supportsVision: supportedModel.llmSupportImage,
             supportsSpeculativeDecoding: supportedModel.supportsSpeculativeDecoding,

@@ -19,6 +19,11 @@ public struct ModelManagerView: View {
     @State private var showingTokenSheet: Bool = false
     @State private var alertMessage: String? = nil
     @State private var showAlert: Bool = false
+    @State private var searchQuery: String = "ASR"
+    @State private var searchResults: [ModelCompatibilityReport] = []
+    @State private var isSearching: Bool = false
+
+    private let searchService = HuggingFaceSearchService()
 
     public init(modelManager: ModelManager) {
         self.modelManager = modelManager
@@ -43,8 +48,12 @@ public struct ModelManagerView: View {
                     // Apple Native Zero-Download Section
                     appleNativeSpeechCard
 
-                    // LiteRT Audio Models Section
-                    gemmaModelsSection
+                    // Search the live Hugging Face catalog instead of presenting a
+                    // hard-coded pair of models that may not fit the current device.
+                    huggingFaceSearchSection
+
+                    // Recommended, imported, and already-downloaded models.
+                    modelLibrarySection
 
                     // Zero Bundled Weights Architectural Guarantee
                     architecturalGuaranteeCard
@@ -88,6 +97,9 @@ public struct ModelManagerView: View {
             .onAppear {
                 modelManager.refreshModelStates()
                 modelManager.refreshDiskSpace()
+                if searchResults.isEmpty {
+                    searchHuggingFace()
+                }
             }
         }
     }
@@ -95,10 +107,17 @@ public struct ModelManagerView: View {
 
     // MARK: - Subviews & Actions
 
-    private var gemmaModelsSection: some View {
+    private var visibleModels: [SupportedAudioModel] {
+        modelManager.supportedModels.filter { model in
+            modelManager.isUserImportedModel(model)
+                || modelManager.isModelDownloaded(model)
+        }
+    }
+
+    private var modelLibrarySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("ON-DEVICE GEMMA MODELS")
+                Text("MODEL LIBRARY")
                     .font(.caption)
                     .fontWeight(.bold)
                     .foregroundColor(.secondary)
@@ -111,8 +130,148 @@ public struct ModelManagerView: View {
                     .foregroundColor(Theme.edgeBlue)
             }
 
-            ForEach(modelManager.supportedModels) { model in
+            ForEach(visibleModels) { model in
                 modelCard(for: model)
+            }
+        }
+    }
+
+    private var huggingFaceSearchSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("SEARCH HUGGING FACE")
+                .font(.caption)
+                .fontWeight(.bold)
+                .foregroundColor(.secondary)
+                .tracking(1.0)
+
+            HStack(spacing: 8) {
+                TextField("Repository or model name", text: $searchQuery)
+                    .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    .submitLabel(.search)
+                    #endif
+                    .onSubmit { searchHuggingFace() }
+
+                Button(action: searchHuggingFace) {
+                    if isSearching {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: "magnifyingglass")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isSearching || searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            Text("Only audio-capable .litertlm bundles can be imported. Other Hugging Face formats are shown as incompatible instead of being downloaded unusably.")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+
+            HStack(spacing: 8) {
+                Button("VibeVoice · ~1.85 GiB") {
+                    searchQuery = "VibeVoice-ASR-BitNet"
+                    searchHuggingFace()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button("Qwen3 ASR · Russian") {
+                    searchQuery = "Qwen3-ASR-0.6B"
+                    searchHuggingFace()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+
+            ForEach(searchResults, id: \.modelId) { report in
+                searchResultCard(report)
+            }
+        }
+        .padding(Theme.standardPadding)
+        .edgeCardStyle()
+    }
+
+    private func searchResultCard(_ report: ModelCompatibilityReport) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(report.modelId)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    if let filename = report.modelFilename {
+                        Text(filename)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+                Text(report.isCompatible ? "COMPATIBLE" : "UNSUPPORTED")
+                    .font(.caption2)
+                    .fontWeight(.bold)
+                    .foregroundColor(report.isCompatible ? Theme.successGreen : .red)
+            }
+
+            HStack {
+                if let bytes = report.fileSizeBytes {
+                    Text(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                if report.isCompatible {
+                    Button("Add & Download") { importAndDownload(report) }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                }
+            }
+
+            if !report.isCompatible {
+                Text(report.diagnosticReasons.joined(separator: " "))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(10)
+        .background(Color.primary.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func searchHuggingFace() {
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+        isSearching = true
+        searchResults = []
+        Task {
+            defer { isSearching = false }
+            do {
+                let token = appConfig.huggingFaceToken.isEmpty ? nil : appConfig.huggingFaceToken
+                searchResults = try await searchService.searchAudioModels(
+                    query: query,
+                    bearerToken: token
+                )
+                if searchResults.isEmpty {
+                    alertMessage = "No Hugging Face repositories matched this search."
+                    showAlert = true
+                }
+            } catch {
+                alertMessage = error.localizedDescription
+                showAlert = true
+            }
+        }
+    }
+
+    private func importAndDownload(_ report: ModelCompatibilityReport) {
+        Task {
+            do {
+                let model = try modelManager.addDiscoveredModel(report)
+                let token = appConfig.huggingFaceToken.isEmpty ? nil : appConfig.huggingFaceToken
+                try await modelManager.downloadModel(model, bearerToken: token)
+            } catch {
+                alertMessage = error.localizedDescription
+                showAlert = true
             }
         }
     }

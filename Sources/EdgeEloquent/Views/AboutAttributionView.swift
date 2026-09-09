@@ -58,7 +58,7 @@ public struct AboutAttributionView: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
-            Text("Version 1.0.3 (Build 2026.09)")
+            Text("Version 1.0.4 (Build 2026.09)")
                 .font(.caption2)
                 .foregroundColor(.secondary)
         }

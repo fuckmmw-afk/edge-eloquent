@@ -253,7 +253,21 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
             audioContent = .audioData(wavData)
         }
         
-        let textInstruction = prompt ?? Self.defaultTranscriptionPrompt
+        let textInstruction: String
+        if let prompt {
+            textInstruction = prompt
+        } else if modelInfo.modelId.caseInsensitiveCompare("litert-community/VibeVoice-ASR-BitNet") == .orderedSame {
+            // VibeVoice's LiteRT-LM conversion was trained with an explicit clip-duration
+            // instruction. Supplying it avoids empty or conversational responses.
+            let pcmBytes = max(0, wavData.count - 44)
+            let duration = Double(pcmBytes) / (UnifiedAudioCapture.targetSampleRate * 2.0)
+            textInstruction = String(
+                format: "This is a %.2f seconds audio, please transcribe it.",
+                duration
+            )
+        } else {
+            textInstruction = Self.defaultTranscriptionPrompt
+        }
         
         // CRITICAL MULTIMODAL MESSAGE ORDERING RULE:
         // Google LiteRT-LM audio attention architecture mandates that the audio content node

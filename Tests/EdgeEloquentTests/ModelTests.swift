@@ -16,11 +16,13 @@ final class ModelTests: XCTestCase {
         
         XCTAssertTrue(ids.contains("gemma-3n-e2b-it"), "Gemma-3n-E2B-it must be supported.")
         XCTAssertTrue(ids.contains("gemma-3n-e4b-it"), "Gemma-3n-E4B-it must be supported.")
+        XCTAssertTrue(ids.contains("qwen3-asr-0.6b"), "Qwen3-ASR-0.6B must be supported.")
+        XCTAssertTrue(ids.contains("vibevoice-asr-bitnet"), "VibeVoice-ASR-BitNet must be supported.")
         
         for model in models {
             XCTAssertTrue(model.supportsAudio, "Official models must declare audio capability.")
             XCTAssertTrue(model.modelFile.hasSuffix(".litertlm"), "Official models must be in .litertlm format.")
-            XCTAssertGreaterThan(model.sizeInBytes, 1_000_000_000, "Official models are >1GB.")
+            XCTAssertGreaterThan(model.sizeInBytes, 100_000_000, "Production audio models must contain real weights.")
             XCTAssertFalse(model.commitHash.isEmpty, "Pinned commit hash must be defined.")
             XCTAssertEqual(model.accelerators.llm, .gpu, "LLM must be accelerated on GPU.")
             XCTAssertEqual(model.accelerators.audio, .cpu, "Audio Conformer must run on CPU.")
@@ -45,7 +47,7 @@ final class ModelTests: XCTestCase {
     }
 
     func testDownloadableGemmaModelsUseIOSMemorySafeContext() {
-        for model in SupportedAudioModel.allModels {
+        for model in [SupportedAudioModel.gemma3n_E2B_it, SupportedAudioModel.gemma3n_E4B_it] {
             XCTAssertEqual(
                 model.contextWindowTokens,
                 4_096,
@@ -54,6 +56,22 @@ final class ModelTests: XCTestCase {
         }
         XCTAssertEqual(SupportedAudioModel.gemma3n_E2B_it.minRAMDescription, "6 GB")
         XCTAssertEqual(SupportedAudioModel.gemma3n_E4B_it.minRAMDescription, "8 GB")
+    }
+
+    func testCompactASRRecommendationFitsFourGBDevices() {
+        let model = SupportedAudioModel.qwen3ASR_06B
+        XCTAssertEqual(model.expectedBytes, 959_627_232)
+        XCTAssertEqual(model.minRAMDescription, "4 GB")
+        XCTAssertTrue(model.llmSupportAudio)
+        XCTAssertFalse(model.llmSupportImage)
+        XCTAssertEqual(model.contextWindowTokens, 1_024)
+    }
+
+    func testApproximate187GiBModelIdentity() {
+        let model = SupportedAudioModel.vibeVoiceASRBitNet
+        XCTAssertEqual(model.expectedBytes, 1_983_019_248)
+        XCTAssertEqual(model.minRAMDescription, "4 GB")
+        XCTAssertEqual(model.expectedSHA256, "5ca907b0343d3e6bd9ec3dbf8aecbcc99b733633ef007a78a7e0f3502010af1b")
     }
 
     func testLiteRTAudioUsesNativeFilePathByDefault() {

@@ -76,6 +76,7 @@ public final class ModelManager: ObservableObject {
 
     /// Key used for persisting active model selection in `UserDefaults`.
     nonisolated public static let activeModelUserDefaultsKey = "com.edgeeloquent.activeModelId"
+    nonisolated public static let customModelsUserDefaultsKey = "com.edgeeloquent.customAudioModels"
 
     /// Application Support subdirectory for Edge Eloquent model artifacts.
     nonisolated public static let modelsSubdirectory = "EdgeEloquent/Models"
@@ -178,6 +179,7 @@ public final class ModelManager: ObservableObject {
     private let downloader: ModelRepoDownloader
     private let fileManager: FileManager
     private let userDefaults: UserDefaults
+    private var customModelIds: Set<String> = []
 
     // MARK: - Initialization
 
@@ -197,6 +199,16 @@ public final class ModelManager: ObservableObject {
         self.downloader = downloader
         self.fileManager = fileManager
         self.userDefaults = userDefaults
+
+        if let data = userDefaults.data(forKey: Self.customModelsUserDefaultsKey),
+           let customModels = try? JSONDecoder().decode([SupportedAudioModel].self, from: data) {
+            self.customModelIds = Set(customModels.map(\.id))
+            var merged = SupportedAudioModel.allModels
+            for model in customModels where !merged.contains(where: { $0.id == model.id }) {
+                merged.append(model)
+            }
+            self.supportedModels = merged
+        }
 
         createModelsDirectoryIfNeeded()
         try? Self.assertNoBundledWeights()
@@ -346,6 +358,37 @@ public final class ModelManager: ObservableObject {
     }
 
     // MARK: - Download Orchestration
+
+    /// Adds a compatible Hub search result to the local catalog and persists it across launches.
+    @discardableResult
+    public func addDiscoveredModel(_ report: ModelCompatibilityReport) throws -> SupportedAudioModel {
+        guard let discovered = SupportedAudioModel(compatibilityReport: report) else {
+            throw ModelManagerError.activationFailed(
+                report.diagnosticReasons.joined(separator: " ")
+            )
+        }
+
+        if let existing = supportedModels.first(where: { $0.id == discovered.id }) {
+            return existing
+        }
+
+        supportedModels.append(discovered)
+        customModelIds.insert(discovered.id)
+        modelStates[discovered.id] = .notDownloaded
+        persistCustomModels()
+        return discovered
+    }
+
+    public func isUserImportedModel(_ model: SupportedAudioModel) -> Bool {
+        customModelIds.contains(model.id)
+    }
+
+    private func persistCustomModels() {
+        let models = supportedModels.filter { customModelIds.contains($0.id) }
+        if let data = try? JSONEncoder().encode(models) {
+            userDefaults.set(data, forKey: Self.customModelsUserDefaultsKey)
+        }
+    }
 
     /// Starts downloading a model from Hugging Face Hub using chunked, resumable range requests.
     /// - Parameters:

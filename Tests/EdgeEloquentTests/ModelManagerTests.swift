@@ -92,12 +92,14 @@ final class ModelManagerTests: XCTestCase {
     func testSupportedAudioModelsCatalogCompleteness() {
         let models = SupportedAudioModel.allModels
 
-        // Public iOS allowlist currently contains the two Gemma 3n audio models.
-        XCTAssertEqual(models.count, 2)
+        // Compact ASR recommendation plus the two legacy Gemma entries retained for migration.
+        XCTAssertEqual(models.count, 4)
 
         let ids = Set(models.map { $0.name })
         XCTAssertTrue(ids.contains("Gemma-3n-E2B-it"))
         XCTAssertTrue(ids.contains("Gemma-3n-E4B-it"))
+        XCTAssertTrue(ids.contains("Qwen3-ASR-0.6B"))
+        XCTAssertTrue(ids.contains("VibeVoice-ASR-BitNet"))
 
         // Invariant: All supported models must support audio dictation
         for model in models {
@@ -361,6 +363,31 @@ final class ModelManagerTests: XCTestCase {
         XCTAssertEqual(report.modelFilename, "gemma-3n-E2B-it-int4.litertlm")
     }
 
+    func testCurrentHuggingFaceLFSChecksumFieldIsDecoded() throws {
+        let data = #"{"sha256":"d4444d51","size":959627232}"#.data(using: .utf8)!
+        let lfs = try JSONDecoder().decode(HuggingFaceLFS.self, from: data)
+        XCTAssertEqual(lfs.checksum, "d4444d51")
+        XCTAssertEqual(lfs.size, 959_627_232)
+    }
+
+    func testCompatibilityUsesRepositoryRevisionAndArtifactChecksumSeparately() throws {
+        let metadata = HuggingFaceModelMetadata(
+            id: "example/audio-model",
+            sha: "repository-revision",
+            tags: ["audio"],
+            pipelineTag: "automatic-speech-recognition",
+            siblings: [
+                HuggingFaceSibling(
+                    rfilename: "audio.litertlm",
+                    lfs: HuggingFaceLFS(sha256: "artifact-sha256", size: 900_000_000)
+                )
+            ]
+        )
+        let report = HuggingFaceSearchService().verifyCompatibility(metadata: metadata)
+        XCTAssertEqual(report.commitHash, "repository-revision")
+        XCTAssertEqual(report.artifactSHA256, "artifact-sha256")
+    }
+
     // MARK: - ModelManager Lifecycle & State Tests
 
     @MainActor
@@ -370,7 +397,7 @@ final class ModelManagerTests: XCTestCase {
             userDefaults: testUserDefaults
         )
 
-        XCTAssertEqual(manager.supportedModels.count, 2)
+        XCTAssertEqual(manager.supportedModels.count, 4)
         XCTAssertNil(manager.activeModelId)
         XCTAssertNil(manager.activeModel)
         XCTAssertEqual(manager.downloadedModels.count, 0)
@@ -378,6 +405,34 @@ final class ModelManagerTests: XCTestCase {
         for model in manager.supportedModels {
             XCTAssertEqual(manager.state(for: model.id), .notDownloaded)
         }
+    }
+
+    @MainActor
+    func testDiscoveredCompatibleModelPersistsInCatalog() throws {
+        let report = ModelCompatibilityReport(
+            modelId: "publisher/custom-asr",
+            isCompatible: true,
+            hasLitertlmFormat: true,
+            supportsAudio: true,
+            modelFilename: "custom-asr.litertlm",
+            fileSizeBytes: 800_000_000,
+            commitHash: "repository-revision",
+            artifactSHA256: "artifact-checksum",
+            diagnosticReasons: []
+        )
+        let manager = ModelManager(
+            modelsDirectory: tempDirectoryURL,
+            userDefaults: testUserDefaults
+        )
+        let imported = try manager.addDiscoveredModel(report)
+        XCTAssertTrue(manager.isUserImportedModel(imported))
+        XCTAssertEqual(imported.expectedSHA256, "artifact-checksum")
+
+        let restored = ModelManager(
+            modelsDirectory: tempDirectoryURL,
+            userDefaults: testUserDefaults
+        )
+        XCTAssertTrue(restored.supportedModels.contains(where: { $0.id == report.modelId }))
     }
 
     @MainActor
