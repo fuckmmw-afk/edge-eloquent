@@ -18,11 +18,11 @@
       "localizedDescription": "Private iOS dictation powered by the official Google AI Edge LiteRT-LM runtime and compatible audio models from Hugging Face. Model artifacts are downloaded on demand and verified with SHA-256. Optional cloud text enhancement and web search are disabled by default. Audio never leaves the device.",
       "iconURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/icon.png",
       "tintColor": "4A90E2",
-      "version": "1.0.6",
-      "versionDate": "2026-09-09T15:23:05Z",
+      "version": "1.0.7",
+      "versionDate": "2026-09-09T18:39:17Z",
       "versionDescription": "Fixes the Qwen recording failure by rejecting LiteRT CompiledModel artifacts before they reach the LiteRT-LM Conversation API. Hugging Face imports now require an explicit LiteRT-LM runtime declaration; VibeVoice uses deterministic ASR decoding and is the 4 GB default.",
-      "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.6/EdgeEloquent.ipa",
-      "size": 21033590,
+      "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.7/EdgeEloquent.ipa",
+      "size": 21039422,
       "screenshotURLs": [
         "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/screenshot1.png",
         "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/screenshot2.png"
@@ -42,6 +42,14 @@
         }
       },
       "versions": [
+        {
+          "version": "1.0.7",
+          "date": "2026-09-09T18:39:17Z",
+          "size": 21039422,
+          "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.7/EdgeEloquent.ipa",
+          "localizedDescription": "Fixes the Qwen recording failure by rejecting LiteRT CompiledModel artifacts before they reach the LiteRT-LM Conversation API. Hugging Face imports now require an explicit LiteRT-LM runtime declaration; VibeVoice uses deterministic ASR decoding and is the 4 GB default.",
+          "minOSVersion": "17.0"
+        },
         {
           "version": "1.0.6",
           "date": "2026-09-09T15:23:05Z",
