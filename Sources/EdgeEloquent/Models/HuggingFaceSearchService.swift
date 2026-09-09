@@ -448,7 +448,7 @@ public final class HuggingFaceSearchService: Sendable {
     /// 2. **Runtime Invariant:** Must explicitly declare the LiteRT-LM runtime. The
     ///    extension alone is insufficient: some fixed LiteRT CompiledModel ASR graphs
     ///    use `.litertlm` but cannot create a LiteRT-LM Conversation.
-    /// 2. **Audio Dictation Invariant:**
+    /// 3. **Audio Dictation Invariant:**
     ///    - Explicitly sets `llmSupportAudio: true` in cardData/config, OR
     ///    - Contains audio tags ("audio", "speech", "llm_ask_audio"), OR
     ///    - Matches the known official audio allowlist (Gemma-4-E2B, Gemma-4-E4B, Gemma-3n-E2B, Gemma-3n-E4B).

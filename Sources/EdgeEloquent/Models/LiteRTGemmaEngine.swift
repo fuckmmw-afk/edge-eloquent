@@ -100,7 +100,7 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
 
         let conversation: Conversation
         do {
-            conversation = try engine.createConversation(with: config)
+            conversation = try await engine.createConversation(with: config)
         } catch {
             throw SpeechModelEngineError.engineInitializationFailed(
                 reason: "\(modelInfo.name) could not create a LiteRT-LM conversation: \(error.localizedDescription)"
