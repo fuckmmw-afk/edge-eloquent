@@ -20,7 +20,7 @@
       "tintColor": "4A90E2",
       "version": "1.0.5",
       "versionDate": "2026-09-09T12:02:48Z",
-      "versionDescription": "Adds Hugging Face audio-model search, the approximately 1.85 GiB VibeVoice ASR BitNet model, and Qwen3-ASR 0.6B with Russian support for 4 GB iPhones. Only compatible .litertlm audio bundles can be imported.",
+      "versionDescription": "Adds Hugging Face audio-model search and lightweight ASR for 4 GB iPhones. Qwen3-ASR 0.6B uses its required five-second audio windows for low-latency Russian transcription; VibeVoice ASR BitNet matches the remembered approximately 1.87 GB model.",
       "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.5/EdgeEloquent.ipa",
       "size": 21027763,
       "screenshotURLs": [
@@ -47,7 +47,7 @@
           "date": "2026-09-09T12:02:48Z",
           "size": 21027763,
           "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.5/EdgeEloquent.ipa",
-          "localizedDescription": "Adds Hugging Face audio-model search, the approximately 1.85 GiB VibeVoice ASR BitNet model, and Qwen3-ASR 0.6B with Russian support for 4 GB iPhones. Only compatible .litertlm audio bundles can be imported.",
+          "localizedDescription": "Adds Hugging Face audio-model search and lightweight ASR for 4 GB iPhones. Qwen3-ASR 0.6B uses its required five-second audio windows for low-latency Russian transcription; VibeVoice ASR BitNet matches the remembered approximately 1.87 GB model.",
           "minOSVersion": "17.0"
         },
         {
@@ -87,10 +87,10 @@
   ],
   "news": [
     {
-      "title": "Edge Eloquent 1.0.4 Released",
-      "identifier": "edge-eloquent-v1-0-4-release",
-      "caption": "Hugging Face audio-model search and lightweight ASR for 4 GB iPhones",
-      "date": "2026-09-09T11:39:46Z",
+      "title": "Edge Eloquent 1.0.5 Released",
+      "identifier": "edge-eloquent-v1-0-5-release",
+      "caption": "Five-second Qwen ASR windows for responsive Russian dictation",
+      "date": "2026-09-09T12:02:48Z",
       "tintColor": "4A90E2",
       "imageURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/icon.png",
       "url": "https://github.com/fuckmmw-afk/edge-eloquent",
