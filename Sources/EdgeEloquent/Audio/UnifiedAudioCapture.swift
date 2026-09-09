@@ -90,7 +90,7 @@ public final class UnifiedAudioCapture: @unchecked Sendable {
     public static let samplesPer15Seconds: Int = 240_000
 
     /// Maximum duration of continuous audio before mandatory chunk slicing (seconds).
-    public let maxSliceDuration: TimeInterval
+    public private(set) var maxSliceDuration: TimeInterval
 
     /// Minimum duration required to emit a valid chunk (seconds). Slices below this are discarded.
     public let minSliceDuration: TimeInterval
@@ -344,6 +344,14 @@ public final class UnifiedAudioCapture: @unchecked Sendable {
         #endif
     }
 
+    /// Updates the window limit before a recording starts. This lets fixed-window
+    /// ASR exports receive the duration they were converted for.
+    public func setMaxSliceDuration(_ duration: TimeInterval) {
+        lock.lock()
+        maxSliceDuration = max(minSliceDuration, duration)
+        lock.unlock()
+    }
+
     // MARK: - Audio Engine Pipeline Setup
 
     #if canImport(AVFoundation)
@@ -476,11 +484,11 @@ public final class UnifiedAudioCapture: @unchecked Sendable {
         var shouldEmitSlice = false
         var emitReason = ""
 
-        // 1. Mandatory max window slice (e.g. 15.0 seconds = 240,000 samples)
+        // 1. Mandatory model-specific maximum window slice.
         if (totalCount >= Self.samplesPer15Seconds || currentDuration >= maxSliceDuration),
            hasDetectedSpeechInCurrentSlice {
             shouldEmitSlice = true
-            emitReason = "Max window duration reached (15s / 240,000 samples)"
+            emitReason = "Max window duration reached (\(maxSliceDuration)s)"
         }
         // 2. VAD Silence Hangover (speech was active, now silence sustained for >= threshold)
         else if hasDetectedSpeechInCurrentSlice && currentDuration >= minSliceDuration {

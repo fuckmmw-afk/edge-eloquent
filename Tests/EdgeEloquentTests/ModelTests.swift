@@ -65,6 +65,7 @@ final class ModelTests: XCTestCase {
         XCTAssertTrue(model.llmSupportAudio)
         XCTAssertFalse(model.llmSupportImage)
         XCTAssertEqual(model.contextWindowTokens, 1_024)
+        XCTAssertEqual(model.recommendedAudioWindowSeconds, 5.0)
     }
 
     func testApproximate187GiBModelIdentity() {
@@ -72,6 +73,7 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(model.expectedBytes, 1_983_019_248)
         XCTAssertEqual(model.minRAMDescription, "4 GB")
         XCTAssertEqual(model.expectedSHA256, "5ca907b0343d3e6bd9ec3dbf8aecbcc99b733633ef007a78a7e0f3502010af1b")
+        XCTAssertEqual(model.recommendedAudioWindowSeconds, 15.0)
     }
 
     func testLiteRTAudioUsesNativeFilePathByDefault() {

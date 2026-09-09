@@ -221,6 +221,12 @@ public final class DictationCoordinator: ObservableObject {
         lastErrorMessage = nil
         recordingStartTime = Date()
 
+        // Some dedicated ASR conversions have a fixed acoustic input length. In
+        // particular, Qwen3-ASR-0.6B is exported for five-second windows; sending
+        // the generic 15-second window can produce empty output or shape errors.
+        let audioWindow = modelManager.activeModel?.recommendedAudioWindowSeconds ?? 15.0
+        audioCapture.setMaxSliceDuration(audioWindow)
+
         state = .recording(duration: 0.0)
 
         // Start duration timer

@@ -116,6 +116,17 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
         ByteCountFormatter.string(fromByteCount: expectedBytes, countStyle: .file)
     }
 
+    /// Maximum capture window suited to the artifact's exported audio input.
+    /// Qwen's mobile conversion is explicitly fixed to five-second windows.
+    public var recommendedAudioWindowSeconds: TimeInterval {
+        let normalizedFilename = filename.lowercased()
+        if id.caseInsensitiveCompare(Self.qwen3ASR_06B.id) == .orderedSame ||
+            normalizedFilename.contains("_5s.") || normalizedFilename.contains("_5s_") {
+            return 5.0
+        }
+        return 15.0
+    }
+
     // MARK: - Built-In Supported Model Catalog
 
     /// Compact multilingual ASR model for memory-constrained phones. Unlike the
