@@ -20,7 +20,7 @@
       "tintColor": "4A90E2",
       "version": "1.0.2",
       "versionDate": "2026-09-09T06:58:46Z",
-      "versionDescription": "Official LiteRT-LM 0.16.1 runtime, on-device Gemma 3n dictation, local cleaner, and optional Cloudflare text enhancer. Model weights are not bundled.",
+      "versionDescription": "Fixes on-device speech recognition: recording now starts before cold model loading, buffered audio is preserved, LiteRT uses validated file-backed WAV input, and iOS memory use is reduced.",
       "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.2/EdgeEloquent.ipa",
       "size": 20994373,
       "screenshotURLs": [
@@ -47,7 +47,7 @@
           "date": "2026-09-09T06:58:46Z",
           "size": 20994373,
           "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.2/EdgeEloquent.ipa",
-          "localizedDescription": "Official LiteRT-LM 0.16.1 runtime, on-device Gemma 3n dictation, local cleaner, and optional Cloudflare text enhancer. Model weights are not bundled.",
+          "localizedDescription": "Fixes on-device speech recognition: recording now starts before cold model loading, buffered audio is preserved, LiteRT uses validated file-backed WAV input, and iOS memory use is reduced.",
           "minOSVersion": "17.0"
         },
         {
@@ -63,10 +63,10 @@
   ],
   "news": [
     {
-      "title": "Edge Eloquent 1.0.1 Released",
-      "identifier": "edge-eloquent-v1-0-1-release",
-      "caption": "Official LiteRT-LM runtime, no bundled model weights",
-      "date": "2026-09-08T22:03:08Z",
+      "title": "Edge Eloquent 1.0.2 Released",
+      "identifier": "edge-eloquent-v1-0-2-release",
+      "caption": "Critical on-device speech recognition fix",
+      "date": "2026-09-09T06:58:46Z",
       "tintColor": "4A90E2",
       "imageURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/icon.png",
       "url": "https://github.com/fuckmmw-afk/edge-eloquent",
