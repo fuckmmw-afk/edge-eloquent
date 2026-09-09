@@ -43,6 +43,29 @@ final class ModelTests: XCTestCase {
         XCTAssertFalse(gemma3n.supportsSpeculativeDecoding)
         XCTAssertFalse(gemma3n.supportsThinking)
     }
+
+    func testDownloadableGemmaModelsUseIOSMemorySafeContext() {
+        for model in SupportedAudioModel.allModels {
+            XCTAssertEqual(
+                model.contextWindowTokens,
+                4_096,
+                "Audio transcription must not reserve an oversized KV cache on iOS."
+            )
+        }
+        XCTAssertEqual(SupportedAudioModel.gemma3n_E2B_it.minRAMDescription, "6 GB")
+        XCTAssertEqual(SupportedAudioModel.gemma3n_E4B_it.minRAMDescription, "8 GB")
+    }
+
+    func testLiteRTAudioUsesNativeFilePathByDefault() {
+        let engine = LiteRTGemmaEngine(modelInfo: .gemma3n_E2B)
+        XCTAssertTrue(engine.useAudioFilePassing)
+    }
+
+    func testDefaultTranscriptionPromptPreservesSpokenLanguage() {
+        let prompt = LiteRTGemmaEngine.defaultTranscriptionPrompt
+        XCTAssertTrue(prompt.contains("language being spoken"))
+        XCTAssertTrue(prompt.contains("Do not describe or translate"))
+    }
     
     func testAppleNativeFallbackModel() {
         let fallback = ModelInfo.appleNative

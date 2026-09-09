@@ -76,6 +76,6 @@ public protocol SpeechModelEngine: AnyObject, Sendable {
 extension SpeechModelEngine {
     /// Canonical system prompt for speech transcription ensuring deterministic output without LLM conversational chattiness.
     public static var defaultTranscriptionPrompt: String {
-        "Transcribe the speech accurately with punctuation. Return only the recognized text."
+        "Transcribe every audible spoken word verbatim in the language being spoken. Preserve the wording, add punctuation, and return only the transcript. Do not describe or translate the audio."
     }
 }

@@ -144,7 +144,7 @@ jobs:
           p = plistlib.load(open("Payload/EdgeEloquent.app/Info.plist", "rb"))
           assert p.get("CFBundleIdentifier") == "com.edgeeloquent.app", f"Invalid bundle id: {p.get("CFBundleIdentifier")}"
           assert p.get("CFBundleName") == "EdgeEloquent", f"Invalid name: {p.get("CFBundleName")}"
-          assert p.get("CFBundleShortVersionString") == "1.0.1", f"Invalid version: {p.get("CFBundleShortVersionString")}"
+          assert p.get("CFBundleShortVersionString") == "1.0.2", f"Invalid version: {p.get("CFBundleShortVersionString")}"
           print("BUNDLE METADATA VALIDATED:")
           print("  CFBundleName:", p.get("CFBundleName"))
           print("  CFBundleDisplayName:", p.get("CFBundleDisplayName"))

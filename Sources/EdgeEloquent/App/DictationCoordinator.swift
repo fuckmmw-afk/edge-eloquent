@@ -216,40 +216,45 @@ public final class DictationCoordinator: ObservableObject {
             }
         }
 
-        // Start capture and listen to audio chunk stream
+        // Register the stream before starting AVAudioEngine. Previously the continuation was
+        // installed only after model initialization and capture startup, so early/final chunks
+        // could be dropped. More importantly, a cold multi-gigabyte model was loaded before the
+        // microphone started even though the UI already said "Recording".
         captureStartTask?.cancel()
         captureStartTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let engine = try await resolveEngine()
-                try Task.checkCancellation()
+                let chunkStream = audioCapture.chunkStream
                 try await audioCapture.startCapture()
                 if Task.isCancelled {
                     _ = await audioCapture.stopCapture()
                     return
                 }
 
-                // Process continuous audio chunks emitted by UnifiedAudioCapture
+                // Load/resolve the model while the microphone is already recording. AsyncStream
+                // buffers chunks emitted during a cold model start and drains them in order.
                 streamProcessingTask = Task { [weak self] in
                     guard let self = self else { return }
-                    for await chunk in self.audioCapture.chunkStream {
-                        guard !Task.isCancelled else { break }
-                        do {
+                    do {
+                        let engine = try await self.resolveEngine()
+                        for await chunk in chunkStream {
+                            try Task.checkCancellation()
                             let tokenStream = try await engine.transcribeAudio(wavData: chunk.wavData, prompt: nil)
                             for try await token in tokenStream {
-                                guard !Task.isCancelled else { break }
+                                try Task.checkCancellation()
                                 await MainActor.run {
                                     self.accumulatedTokens.append(token)
                                     self.realtimePartialTranscript = self.accumulatedTokens.joined()
                                 }
                             }
-                        } catch {
-                            await MainActor.run {
-                                self.streamError = error
-                                self.lastErrorMessage = error.localizedDescription
-                            }
-                            print("[DictationCoordinator] Chunk transcription warning: \(error.localizedDescription)")
                         }
+                    } catch {
+                        if error is CancellationError { return }
+                        await MainActor.run {
+                            self.streamError = error
+                            self.lastErrorMessage = error.localizedDescription
+                        }
+                        print("[DictationCoordinator] Speech processing failed: \(error.localizedDescription)")
                     }
                 }
             } catch {

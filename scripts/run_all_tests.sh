@@ -19,7 +19,7 @@ NC='\033[0m'
 
 PASSED_COUNT=0
 FAILED_COUNT=0
-TOTAL_TESTS=7
+TOTAL_TESTS=8
 
 print_header() {
     echo -e "\n${BLUE}${BOLD}======================================================================${NC}"
@@ -61,6 +61,9 @@ run_suite "Suite 2: Model Specifications & RAM Constraints" \
 # 3. Audio Encoder & PCM Format Verification
 run_suite "Suite 3: Audio WAV/PCM 16kHz Mono Encoder" \
     "python3 -m unittest Tests/test_audio_encoder.py"
+
+run_suite "Suite 3b: Speech Pipeline Regression" \
+    "python3 -m unittest Tests/test_speech_pipeline.py"
 
 # 4. Transcript Cleanup (Russian & English Fillers, Stutter, Duplicates)
 run_suite "Suite 4: Local Transcript Cleaner" \

@@ -28,8 +28,9 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
     /// Directory for caching compiled Metal compute pipeline states.
     public let cacheDirectory: URL?
     
-    /// Strategy for feeding audio into the engine: in-memory base64 (`Content.audioData`)
-    /// or zero-copy filesystem path (`Content.audioFile`).
+    /// Strategy for feeding audio into the engine: a filesystem path (`Content.audioFile`)
+    /// or in-memory base64 (`Content.audioData`). The file path is the default because it is
+    /// the path exercised by LiteRT-LM's native audio examples and avoids a large JSON/base64 copy.
     public let useAudioFilePassing: Bool
     
     // Concurrency synchronization lock
@@ -117,7 +118,7 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         modelInfo: ModelInfo,
         modelPath: String? = nil,
         cacheDirectory: URL? = nil,
-        useAudioFilePassing: Bool = false
+        useAudioFilePassing: Bool = true
     ) {
         self.modelInfo = modelInfo
         self.customModelPath = modelPath
@@ -222,9 +223,16 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
     ) async throws -> AsyncThrowingStream<String, Error> {
         let conversation = try await prepareConversation()
         
-        // Validate minimum audio size (at least 44 bytes header + audio payload)
-        guard wavData.count > 44 else {
-            throw SpeechModelEngineError.invalidAudioFormat(reason: "WAV data too small (\(wavData.count) bytes).")
+        // Reject malformed buffers before they reach the native audio preprocessor. A byte-count
+        // check alone allowed arbitrary/corrupt payloads to be treated as valid microphone audio.
+        let validation = WAVEncoder.validateWAVHeader(wavData)
+        guard validation.isValid,
+              validation.sampleRate == UInt32(UnifiedAudioCapture.targetSampleRate),
+              validation.channels == UInt16(UnifiedAudioCapture.targetChannelCount),
+              validation.bitsPerSample == 16 else {
+            throw SpeechModelEngineError.invalidAudioFormat(
+                reason: validation.errorMessage ?? "Expected 16 kHz mono 16-bit PCM WAV audio."
+            )
         }
         
         // Prepare audio content: in-memory or temporary file
@@ -261,43 +269,29 @@ public final class LiteRTGemmaEngine: SpeechModelEngine, @unchecked Sendable {
         
         logger.info("Dispatched multimodal speech inference with \(wavData.count) audio bytes to \(self.modelInfo.name)")
         
-        let rawMessageStream = conversation.sendMessageStream(
-            message,
-            maxOutputTokens: modelInfo.maxOutputTokens
-        )
-        
-        return AsyncThrowingStream { continuation in
-            let streamingTask = Task {
-                do {
-                    for try await chunk in rawMessageStream {
-                        let tokenText = chunk.toString
-                        
-                        if !tokenText.isEmpty {
-                            continuation.yield(tokenText)
-                        }
-                    }
-                    
-                    // Cleanup temporary scratch audio file if created
-                    if let tempURL = tempAudioFileURL {
-                        try? FileManager.default.removeItem(at: tempURL)
-                    }
-                    
-                    continuation.finish()
-                } catch {
-                    // Cleanup temporary scratch audio file on error
-                    if let tempURL = tempAudioFileURL {
-                        try? FileManager.default.removeItem(at: tempURL)
-                    }
-                    continuation.finish(throwing: error)
-                }
+        // Use the request/response conversation path for audio. This is the upstream path covered
+        // by LiteRT-LM's functional transcription test; the token callback bridge is not required
+        // for our already chunked microphone pipeline and could finish without yielding text.
+        defer {
+            if let tempURL = tempAudioFileURL {
+                try? FileManager.default.removeItem(at: tempURL)
             }
+        }
 
-            continuation.onTermination = { @Sendable _ in
-                streamingTask.cancel()
-                if let tempURL = tempAudioFileURL {
-                    try? FileManager.default.removeItem(at: tempURL)
-                }
-            }
+        let response = try await conversation.sendMessage(
+            message,
+            maxOutputTokens: min(modelInfo.maxOutputTokens, 1_024)
+        )
+        let transcript = response.toString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !transcript.isEmpty else {
+            throw SpeechModelEngineError.transcriptionFailed(
+                reason: "LiteRT-LM completed audio inference but returned no text."
+            )
+        }
+
+        return AsyncThrowingStream { continuation in
+            continuation.yield(transcript + " ")
+            continuation.finish()
         }
     }
 }
