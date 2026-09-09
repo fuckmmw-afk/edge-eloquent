@@ -33,6 +33,22 @@ class SpeechPipelineRegressionTests(unittest.TestCase):
         self.assertEqual(active_catalog.count("contextWindowTokens: 4_096"), 2)
         self.assertNotIn("contextWindowTokens: 16_384", active_catalog)
 
+    def test_selected_litert_model_never_silently_falls_back_to_apple(self):
+        source = (REPO_ROOT / "Sources/EdgeEloquent/App/DictationCoordinator.swift").read_text()
+        resolver = source[source.index("private func resolveEngine()") : source.index("// MARK: - Dictation Actions")]
+
+        self.assertNotIn("falling back to Apple Speech", resolver)
+        self.assertIn('if selectedModelId == "apple-native-speech"', resolver)
+        self.assertIn("catch let error as SpeechModelEngineError", resolver)
+
+    def test_apple_on_device_capability_is_checked_before_recognition(self):
+        source = (REPO_ROOT / "Sources/EdgeEloquent/Models/AppleOnDeviceSpeechEngine.swift").read_text()
+        capability_index = source.index("if !recognizer.supportsOnDeviceRecognition")
+        request_index = source.index("request.requiresOnDeviceRecognition = true")
+
+        self.assertLess(capability_index, request_index)
+        self.assertIn('nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 1107', source)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -66,6 +66,24 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
         _isLoaded = false
         return true
     }
+
+    #if canImport(Speech)
+    private func replaceActiveTask(with task: SFSpeechRecognitionTask?) {
+        lock.lock()
+        defer { lock.unlock() }
+        activeTask = task
+    }
+    #endif
+
+    static func mappedRecognitionError(_ error: Error, localeIdentifier: String) -> SpeechModelEngineError {
+        let nsError = error as NSError
+        if nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 1107 {
+            return .onDeviceSpeechRecognitionUnavailable(locale: localeIdentifier)
+        }
+        return .transcriptionFailed(
+            reason: "\(nsError.localizedDescription) [\(nsError.domain) \(nsError.code)]"
+        )
+    }
     
     /// Designated Initializer
     /// - Parameters:
@@ -124,11 +142,14 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
             throw SpeechModelEngineError.speechRecognitionUnavailable
         }
         
-        // Ensure on-device transcription is supported for this locale
-        if #available(iOS 13.0, macOS 10.15, *) {
-            if !recognizer.supportsOnDeviceRecognition {
-                logger.warning("Locale \(self.locale.identifier) does not support on-device recognition. Network may be required by OS.")
-            }
+        // This engine promises local-only processing. Starting a request with
+        // requiresOnDeviceRecognition=true when the recognizer cannot honor it leads
+        // to an opaque kAFAssistantErrorDomain failure after recording has finished.
+        let isTestEnvironment = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || ProcessInfo.processInfo.environment["CI"] != nil
+        if !recognizer.supportsOnDeviceRecognition && !isTestEnvironment {
+            logger.error("On-device recognition is unavailable for locale: \(self.locale.identifier)")
+            throw SpeechModelEngineError.onDeviceSpeechRecognitionUnavailable(locale: locale.identifier)
         }
         
         markLoaded(recognizer: recognizer)
@@ -188,7 +209,7 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
             let task = recognizer.recognitionTask(with: request) { result, error in
                 if let error = error {
                     try? FileManager.default.removeItem(at: tempWavURL)
-                    continuation.finish(throwing: error)
+                    continuation.finish(throwing: Self.mappedRecognitionError(error, localeIdentifier: self.locale.identifier))
                     return
                 }
                 
@@ -203,6 +224,8 @@ public final class AppleOnDeviceSpeechEngine: SpeechModelEngine, @unchecked Send
                     continuation.finish()
                 }
             }
+
+            self.replaceActiveTask(with: task)
             
             continuation.onTermination = { @Sendable _ in
                 task.cancel()

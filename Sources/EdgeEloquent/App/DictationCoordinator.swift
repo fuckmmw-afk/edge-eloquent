@@ -131,8 +131,6 @@ public final class DictationCoordinator: ObservableObject {
             self.activeEngineName = activeModel.name
         } else if modelManager.activeModelId == "apple-native-speech" {
             self.activeEngineName = "Apple Native Speech"
-        } else if let firstReady = modelManager.downloadedModels.first {
-            self.activeEngineName = firstReady.name
         } else {
             self.activeEngineName = "Apple Native Speech"
         }
@@ -142,34 +140,56 @@ public final class DictationCoordinator: ObservableObject {
     private func resolveEngine() async throws -> SpeechModelEngine {
         updateActiveEngineName()
 
-        // If active model is a downloaded LiteRT model
-        if let active = modelManager.activeModel {
-            let fileURL = modelManager.modelFileURL(for: active)
-            if FileManager.default.fileExists(atPath: fileURL.path) {
-                // Map SupportedAudioModel to ModelInfo
-                let info = ModelInfo(supportedModel: active)
-
-                // If existing activeEngine is for a different model, unload it first
-                if let existing = activeEngine {
-                    if existing.modelInfo.id == info.id && existing.isLoaded {
-                        return existing
-                    }
-                    await existing.unload()
-                    self.activeEngine = nil
-                }
-
-                let engine = LiteRTGemmaEngine(modelInfo: info, modelPath: fileURL.path)
-                do {
-                    try await engine.load()
-                    self.activeEngine = engine
-                    return engine
-                } catch {
-                    print("[DictationCoordinator] LiteRT load failed (\(error.localizedDescription)), falling back to Apple Speech.")
-                }
-            }
+        // Apple Speech is used only when the user selected it explicitly or no local
+        // Gemma model has ever been selected. A LiteRT failure must never be hidden by
+        // silently changing engines: doing so masks the actionable model error and can
+        // send the recording into an unavailable Apple recognizer for the current locale.
+        guard let selectedModelId = modelManager.activeModelId else {
+            return try await resolveAppleEngine()
         }
 
-        // Apple Native Speech or fallback
+        if selectedModelId == "apple-native-speech" {
+            return try await resolveAppleEngine()
+        }
+
+        guard let active = modelManager.activeModel else {
+            throw SpeechModelEngineError.engineInitializationFailed(
+                reason: "Selected model \(selectedModelId) is missing or incomplete. Re-download it in Model Manager."
+            )
+        }
+
+        guard modelManager.isModelDownloaded(active) else {
+            throw SpeechModelEngineError.engineInitializationFailed(
+                reason: "Selected model \(active.name) failed its local integrity check. Re-download it in Model Manager."
+            )
+        }
+
+        let info = ModelInfo(supportedModel: active)
+        if let existing = activeEngine {
+            if existing.modelInfo.id == info.id && existing.isLoaded {
+                return existing
+            }
+            await existing.unload()
+            self.activeEngine = nil
+        }
+
+        let fileURL = modelManager.modelFileURL(for: active)
+        let engine = LiteRTGemmaEngine(modelInfo: info, modelPath: fileURL.path)
+        do {
+            try await engine.load()
+            self.activeEngine = engine
+            self.activeEngineName = active.name
+            return engine
+        } catch let error as SpeechModelEngineError {
+            throw error
+        } catch {
+            throw SpeechModelEngineError.engineInitializationFailed(
+                reason: "\(active.name): \(error.localizedDescription)"
+            )
+        }
+    }
+
+    private func resolveAppleEngine() async throws -> SpeechModelEngine {
         if let existing = activeEngine {
             if existing.modelInfo.id == ModelInfo.appleNative.id && existing.isLoaded {
                 return existing
@@ -178,11 +198,11 @@ public final class DictationCoordinator: ObservableObject {
             self.activeEngine = nil
         }
 
-        let fallback = AppleOnDeviceSpeechEngine()
-        try await fallback.load()
-        self.activeEngine = fallback
-        self.activeEngineName = fallback.modelInfo.name
-        return fallback
+        let engine = AppleOnDeviceSpeechEngine()
+        try await engine.load()
+        self.activeEngine = engine
+        self.activeEngineName = engine.modelInfo.name
+        return engine
     }
 
     // MARK: - Dictation Actions

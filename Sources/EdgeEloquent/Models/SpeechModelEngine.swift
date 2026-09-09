@@ -18,6 +18,7 @@ public enum SpeechModelEngineError: LocalizedError, Sendable, Equatable {
     case insufficientDeviceMemory(requiredGb: Int, availableGb: Int)
     case cancelled
     case speechRecognitionUnavailable
+    case onDeviceSpeechRecognitionUnavailable(locale: String)
     case speechRecognitionPermissionDenied
     case runtimeUnavailable
     
@@ -41,6 +42,8 @@ public enum SpeechModelEngineError: LocalizedError, Sendable, Equatable {
             return "Transcription operation was cancelled."
         case .speechRecognitionUnavailable:
             return "Apple native speech recognition service is currently unavailable."
+        case .onDeviceSpeechRecognitionUnavailable(let locale):
+            return "Apple on-device speech recognition is unavailable for locale \(locale). Install the matching Dictation language in iOS Settings or select a downloaded Gemma model."
         case .speechRecognitionPermissionDenied:
             return "Speech recognition authorization was denied by the user."
         case .runtimeUnavailable:

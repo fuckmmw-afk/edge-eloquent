@@ -75,6 +75,22 @@ final class ModelTests: XCTestCase {
         XCTAssertNil(fallback.downloadURL)
         XCTAssertEqual(fallback.accelerators.llm, .neuralEngine)
     }
+
+    func testAppleAssistant1107HasActionableError() {
+        let rawError = NSError(
+            domain: "kAFAssistantErrorDomain",
+            code: 1107,
+            userInfo: [NSLocalizedDescriptionKey: "The operation couldn't be completed."]
+        )
+        let mapped = AppleOnDeviceSpeechEngine.mappedRecognitionError(
+            rawError,
+            localeIdentifier: "ru-RU"
+        )
+
+        XCTAssertEqual(mapped, .onDeviceSpeechRecognitionUnavailable(locale: "ru-RU"))
+        XCTAssertTrue(mapped.localizedDescription.contains("Dictation language"))
+        XCTAssertTrue(mapped.localizedDescription.contains("Gemma"))
+    }
     
     func testDeviceRAMCompatibility() {
         let gemma4_2b = ModelInfo.gemma4_E2B // Requires 8 GB
