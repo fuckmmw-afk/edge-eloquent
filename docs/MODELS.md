@@ -1,10 +1,10 @@
 # Edge Eloquent: Model Ecosystem & Multimodal Infrastructure Specification
 
-**Document Version:** 1.0.0  
-**Target Platform:** iOS 17.0+ (Apple Silicon: A17 Pro, A18, A18 Pro, M-series)  
+**Document Version:** 1.0.4
+**Target Platform:** iOS 17.0+ (Apple Silicon: A14 and newer, M-series)
 **Upstream Runtime:** Google AI Edge LiteRT-LM 0.16.1
 
-> **iOS support note:** The application exposes only Gemma 3n E2B and E4B. Gemma 4 entries below are retained as research metadata and are not selectable until Google publishes them in the public iOS allowlist.
+> **iOS support note:** The application searches Hugging Face for audio-capable `.litertlm` bundles. Qwen3-ASR 0.6B is the default for 4 GB devices; VibeVoice-ASR-BitNet is the likely approximately 1.87 GB model remembered from AI Edge Gallery discovery. Other file formats are shown as incompatible and cannot be imported into LiteRT-LM.
 **Distribution Model:** Dynamic On-Demand Delivery via Hugging Face Hub (Zero IPA Weights)  
 **Date:** September 2026  
 
@@ -26,18 +26,19 @@ Google manages certified edge models through versioned JSON allowlists. Rather t
 - **`ios_1_0_0.json`:** The production allowlist certified for iOS devices, enforcing memory-budgeted checkpoints compatible with Apple Silicon unified memory constraints.
 - **`1_0_19.json`:** The bleeding-edge Android/unified allowlist introducing 32K context windows, chain-of-thought reasoning (`llm_thinking`), and Multi-Token Prediction (`speculative_decoding`).
 
-#### Why Edge Eloquent Uses a Pinned Catalog
-Only artifacts validated for the current public iOS runtime are selectable. The catalog currently contains Gemma 3n E2B and E4B; adding a model requires a pinned repository revision, exact size, SHA-256 digest, and a successful iOS runtime validation.
-- **Device Diversity:** E2B is the lower-memory default, while E4B is offered for devices with more unified-memory headroom.
-- **Context Length:** Both packaged Gemma 3n descriptors use a 16,384-token engine limit.
-- **Forward Compatibility:** Gemma 4 descriptors are retained for research, but are not presented as supported downloads.
+#### Why Edge Eloquent Combines Search with Pinned Metadata
+The built-in choices provide known repository revisions, exact sizes, and SHA-256 digests. Live Hugging Face search expands that catalog without pretending that every repository can run: only metadata-confirmed audio `.litertlm` artifacts are importable.
+- **4 GB Devices:** Qwen3-ASR 0.6B is the lightweight default and supports Russian.
+- **Remembered ~1.87 GB Model:** VibeVoice-ASR-BitNet is 1,983,019,248 bytes (1.847 GiB), but its published language list does not include Russian.
+- **Legacy Compatibility:** Gemma 3n E2B/E4B descriptors remain available for existing downloads, though their 6/8 GB recommendations exceed the iPhone 12 memory budget.
+- **Integrity:** The repository commit selects the immutable download revision; the LFS SHA-256 separately verifies the downloaded bytes.
 - **Fallback Capability:** Edge Eloquent provides an instant zero-download fallback engine (`AppleOnDeviceSpeechEngine` using native iOS `SFSpeechRecognizer`) for zero-storage or low-memory scenarios.
 
 ---
 
 ## 2. Supported Audio-Capable Models Specification
 
-Edge Eloquent supports two pinned Gemma 3n audio models plus the zero-download Apple native speech engine. Gemma 4 rows in historical research tables below are non-production metadata and must not be treated as selectable models.
+Edge Eloquent ships no weights. It provides these pinned starting points plus compatible models imported from Hugging Face search and the zero-download Apple native speech engine.
 
 ```
 +---------------------------------------------------------------------------------------------------------+
@@ -45,15 +46,17 @@ Edge Eloquent supports two pinned Gemma 3n audio models plus the zero-download A
 +---------------------------------------------------------------------------------------------------------+
 |  Model Name         | HF Repository                            | Target File          | Size    | RAM   |
 +---------------------+------------------------------------------+----------------------+---------+-------+
-|  Gemma-4-E2B-it     | litert-community/gemma-4-E2B-it-litert-lm| gemma-4-E2B-it       | 2.59 GB | 8 GB  |
-|  Gemma-4-E4B-it     | litert-community/gemma-4-E4B-it-litert-lm| gemma-4-E4B-it       | 3.66 GB | 12 GB |
+|  Qwen3-ASR-0.6B     | litert-community/Qwen3-ASR-0.6B          | qwen3_asr_0.6b_5s_i8 | 0.96 GB | 4 GB  |
+|  VibeVoice ASR      | litert-community/VibeVoice-ASR-BitNet    | VibeVoice-ASR-BitNet | 1.98 GB | 4 GB  |
 |  Gemma-3n-E2B-it    | google/gemma-3n-E2B-it-litert-lm         | gemma-3n-E2B-it-int4 | 3.39 GB | 6 GB  |
 |  Gemma-3n-E4B-it    | google/gemma-3n-E4B-it-litert-lm         | gemma-3n-E4B-it-int4 | 4.65 GB | 8 GB  |
 |  Apple Native Speech| system-embedded                          | SFSpeechRecognizer   | 0 bytes | 4 GB  |
 +---------------------------------------------------------------------------------------------------------+
 ```
 
-### 2.1 Model Specifications Matrix
+### 2.1 Legacy Gemma Research Matrix
+
+The matrix below is retained for architectural research. It is not the v1.0.4 download menu and its Gemma 4 rows are not built-in selectable models.
 
 | Specification | Gemma-4-E2B-it (Recommended) | Gemma-4-E4B-it (High-Capacity) | Gemma-3n-E2B-it (Baseline) | Gemma-3n-E4B-it (Extended) | Apple Native Speech |
 | :--- | :--- | :--- | :--- | :--- | :--- |

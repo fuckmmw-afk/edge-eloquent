@@ -485,18 +485,20 @@ Edge Eloquent's model architecture is built directly on the findings from Google
 
 ### 4.1 Supported Model Catalog
 
-The production iOS catalog is intentionally pinned to models validated by the public LiteRT-LM iOS path:
+The built-in catalog provides pinned, checksum-verified starting points. The model manager can also discover compatible audio bundles through the Hugging Face API:
 
 | Model Name | Model ID / Hugging Face Repository | Artifact Name | Download Size | Minimum RAM | Accelerators | Features |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Gemma-3n-E2B-it** | `google/gemma-3n-E2B-it-litert-lm` | `gemma-3n-E2B-it-int4.litertlm` | 3.66 GB | 4 GB | GPU (LLM), CPU (Audio) | 16K Context, Audio+Vision |
-| **Gemma-3n-E4B-it** | `google/gemma-3n-E4B-it-litert-lm` | `gemma-3n-E4B-it-int4.litertlm` | 4.92 GB | 6 GB | GPU (LLM), CPU (Audio) | 16K Context, High-Capacity |
+| **Qwen3-ASR-0.6B** | `litert-community/Qwen3-ASR-0.6B` | `qwen3_asr_0.6b_5s_i8.litertlm` | 0.96 GB | 4 GB | GPU (LM), CPU (Audio) | Russian + 29 languages, 5-second windows |
+| **VibeVoice-ASR-BitNet** | `litert-community/VibeVoice-ASR-BitNet` | `VibeVoice-ASR-BitNet.litertlm` | 1.98 GB | 4 GB | GPU/CPU | Efficient dedicated ASR; no declared Russian support |
+| **Gemma-3n-E2B-it** | `google/gemma-3n-E2B-it-litert-lm` | `gemma-3n-E2B-it-int4.litertlm` | 3.66 GB | 6 GB | GPU (LLM), CPU (Audio) | 4K Context, Audio+Vision |
+| **Gemma-3n-E4B-it** | `google/gemma-3n-E4B-it-litert-lm` | `gemma-3n-E4B-it-int4.litertlm` | 4.92 GB | 8 GB | GPU (LLM), CPU (Audio) | 4K Context, High-Capacity |
 
-Gemma 4 descriptors remain in source only as research metadata. They are not shown as downloadable models until upstream publicly validates their iOS audio execution path.
+Legacy Gemma entries remain available for migration and already-downloaded artifacts. They are intentionally not the default on an iPhone with 4 GB RAM.
 
 ### 4.2 Dynamic Model Registry
 
-Model metadata can be inspected through Hugging Face, but executable choices remain restricted to the pinned built-in catalog:
+Search results are inspected through the Hugging Face model API. A result is importable only when metadata exposes an audio-capable `.litertlm` artifact with a known byte size; the repository commit and LFS SHA-256 are stored separately so downloads remain reproducible and verifiable. Imported descriptors are persisted locally.
 
 ```swift
 // Models/ModelRegistry.swift

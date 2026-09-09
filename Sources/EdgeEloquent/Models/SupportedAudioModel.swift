@@ -4,9 +4,8 @@ import Foundation
 
 /// Represents a validated, audio-capable model supported by the Edge Eloquent runtime.
 ///
-/// Models defined here match the Google AI Edge Gallery allowlists (ios_1_0_0.json and 1_0_19.json),
-/// strictly containing multimodal audio comprehension capabilities (llmSupportAudio: true)
-/// and packaged in the `.litertlm` FlatBuffers container format.
+/// Built-in models are pinned, audio-capable `.litertlm` artifacts. Additional
+/// compatible artifacts can be discovered through Hugging Face at runtime.
 public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, Sendable {
 
     /// Hugging Face model repository identifier (e.g. "litert-community/gemma-4-E2B-it-litert-lm").
@@ -117,7 +116,7 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
         ByteCountFormatter.string(fromByteCount: expectedBytes, countStyle: .file)
     }
 
-    // MARK: - Official Supported Model Catalog
+    // MARK: - Built-In Supported Model Catalog
 
     /// Compact multilingual ASR model for memory-constrained phones. Unlike the
     /// multimodal Gemma models, this bundle is dedicated to five-second speech windows.
@@ -231,12 +230,12 @@ public struct SupportedAudioModel: Identifiable, Equatable, Hashable, Codable, S
         modelDescription: "State-of-the-art 4B parameter multimodal model for flagship devices with 8GB+ unified memory."
     )
 
-    /// Models publicly validated for the iOS LiteRT-LM path.
+    /// Built-in pinned models plus legacy Gemma migration entries.
     public static var allModels: [SupportedAudioModel] {
         allPredefined
     }
 
-    /// Pre-configured list of all officially verified audio-capable models.
+    /// Pre-configured list of pinned audio-capable models.
     public static let allPredefined: [SupportedAudioModel] = [
         qwen3ASR_06B,
         vibeVoiceASRBitNet,

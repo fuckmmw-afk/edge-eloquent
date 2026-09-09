@@ -15,12 +15,12 @@
       "bundleIdentifier": "com.edgeeloquent.app",
       "developerName": "Edge Eloquent Authors",
       "subtitle": "Private on-device dictation powered by Google AI Edge",
-      "localizedDescription": "Private iOS dictation powered by the official Google AI Edge LiteRT-LM runtime and iOS-validated Gemma 3n models. Model artifacts are downloaded on demand and verified with SHA-256. Optional cloud text enhancement and web search are disabled by default. Audio never leaves the device.",
+      "localizedDescription": "Private iOS dictation powered by the official Google AI Edge LiteRT-LM runtime and compatible audio models from Hugging Face. Model artifacts are downloaded on demand and verified with SHA-256. Optional cloud text enhancement and web search are disabled by default. Audio never leaves the device.",
       "iconURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/icon.png",
       "tintColor": "4A90E2",
       "version": "1.0.4",
       "versionDate": "2026-09-09T11:39:46Z",
-      "versionDescription": "Keeps the selected Gemma transcription engine active, surfaces the original LiteRT loading error instead of silently switching engines, and reports unavailable Apple on-device language support clearly.",
+      "versionDescription": "Adds Hugging Face audio-model search, the approximately 1.85 GiB VibeVoice ASR BitNet model, and Qwen3-ASR 0.6B with Russian support for 4 GB iPhones. Only compatible .litertlm audio bundles can be imported.",
       "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.4/EdgeEloquent.ipa",
       "size": 21027434,
       "screenshotURLs": [
@@ -47,7 +47,7 @@
           "date": "2026-09-09T11:39:46Z",
           "size": 21027434,
           "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.4/EdgeEloquent.ipa",
-          "localizedDescription": "Keeps the selected Gemma transcription engine active, surfaces the original LiteRT loading error instead of silently switching engines, and reports unavailable Apple on-device language support clearly.",
+          "localizedDescription": "Adds Hugging Face audio-model search, the approximately 1.85 GiB VibeVoice ASR BitNet model, and Qwen3-ASR 0.6B with Russian support for 4 GB iPhones. Only compatible .litertlm audio bundles can be imported.",
           "minOSVersion": "17.0"
         },
         {
@@ -79,10 +79,10 @@
   ],
   "news": [
     {
-      "title": "Edge Eloquent 1.0.3 Released",
-      "identifier": "edge-eloquent-v1-0-3-release",
-      "caption": "Selected-engine stability and Apple Speech diagnostics",
-      "date": "2026-09-09T10:13:35Z",
+      "title": "Edge Eloquent 1.0.4 Released",
+      "identifier": "edge-eloquent-v1-0-4-release",
+      "caption": "Hugging Face audio-model search and lightweight ASR for 4 GB iPhones",
+      "date": "2026-09-09T11:39:46Z",
       "tintColor": "4A90E2",
       "imageURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/icon.png",
       "url": "https://github.com/fuckmmw-afk/edge-eloquent",

@@ -41,7 +41,7 @@
 
 ## 1. Executive Summary & Architectural Invariants
 
-Edge Eloquent is an on-device multimodal speech intelligence and dictation engine designed for iOS 17.0+. It uses the official Google AI Edge **LiteRT-LM 0.16.1** Swift package. The selectable catalog is restricted to the publicly validated Gemma 3n E2B/E4B iOS audio models.
+Edge Eloquent is an on-device speech intelligence and dictation engine designed for iOS 17.0+. It uses the official Google AI Edge **LiteRT-LM 0.16.1** Swift package. Its model manager searches Hugging Face and admits only audio-capable `.litertlm` artifacts; Qwen3-ASR 0.6B is the default for 4 GB devices.
 
 When building, packaging, and distributing Edge Eloquent, developers and CI systems must strictly respect two fundamental architectural invariants:
 
@@ -51,7 +51,7 @@ When building, packaging, and distributing Edge Eloquent, developers and CI syst
 +---------------------------------------------------------------------------------------------------------+
 | 1. ZERO WEIGHTS IN BUNDLE:                                                                              |
 |    The IPA contains compiled code, UI assets, and LiteRT-LM, but never model weights.                  |
-|    (2.5 GB to 4.7 GB) are acquired post-launch via resumable HTTP range downloads from Hugging Face.    |
+|    Compatible weights are acquired post-launch via resumable HTTP range downloads from Hugging Face.   |
 |                                                                                                         |
 | 2. STRICT AUDIO AIR-GAP:                                                                                |
 |    Microphone audio never leaves device boundaries. Outbound network traffic is structurally            |

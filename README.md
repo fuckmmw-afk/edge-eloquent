@@ -45,7 +45,7 @@ For comprehensive details on repository schema, version tracking, and deep linki
 1. **Local-Only Inference:** Microphone audio is captured via `AVAudioEngine` and fed directly to the official Google AI Edge **LiteRT-LM 0.16.1** package running on Apple Silicon.
 2. **Zero Audio Transmission:** Raw PCM buffers, WAV files, and audio spectrograms **never touch the network**.
 3. **Optional Text Enhancement:** Cloud enhancement is disabled by default. When explicitly configured, only post-transcription text is forwarded via TLS 1.3. Web search is a separate opt-in because it sends a derived query to the configured search provider.
-4. **No Bundled Weights:** The IPA includes the LiteRT-LM runtime but no model weights. iOS-validated Gemma 3n weights are downloaded on demand from pinned Hugging Face revisions and verified with SHA-256.
+4. **No Bundled Weights:** The IPA includes the LiteRT-LM runtime but no model weights. Compatible audio-capable `.litertlm` models are discovered on Hugging Face, downloaded from immutable revisions, and verified with SHA-256.
 
 ---
 
@@ -94,9 +94,9 @@ Expected output:
   - Repository Name: Edge Eloquent Source
   - Identifier:      com.edgeeloquent.source
   - Apps Registered: 1
-  - Total Releases:  3
-    * Edge Eloquent (com.edgeeloquent.app) - v1.0.3 (20995919 bytes)
-      IPA URL: https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.3/EdgeEloquent.ipa
+  - Total Releases:  4
+    * Edge Eloquent (com.edgeeloquent.app) - v1.0.4 (21027434 bytes)
+      IPA URL: https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.4/EdgeEloquent.ipa
 ```
 
 ---
