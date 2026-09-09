@@ -18,11 +18,11 @@
       "localizedDescription": "Private iOS dictation powered by the official Google AI Edge LiteRT-LM runtime and iOS-validated Gemma 3n models. Model artifacts are downloaded on demand and verified with SHA-256. Optional cloud text enhancement and web search are disabled by default. Audio never leaves the device.",
       "iconURL": "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/icon.png",
       "tintColor": "4A90E2",
-      "version": "1.0.3",
-      "versionDate": "2026-09-09T10:13:35Z",
+      "version": "1.0.4",
+      "versionDate": "2026-09-09T11:39:46Z",
       "versionDescription": "Keeps the selected Gemma transcription engine active, surfaces the original LiteRT loading error instead of silently switching engines, and reports unavailable Apple on-device language support clearly.",
-      "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.3/EdgeEloquent.ipa",
-      "size": 20995919,
+      "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.4/EdgeEloquent.ipa",
+      "size": 21027434,
       "screenshotURLs": [
         "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/screenshot1.png",
         "https://raw.githubusercontent.com/fuckmmw-afk/edge-eloquent/main/Resources/screenshot2.png"
@@ -42,6 +42,14 @@
         }
       },
       "versions": [
+        {
+          "version": "1.0.4",
+          "date": "2026-09-09T11:39:46Z",
+          "size": 21027434,
+          "downloadURL": "https://github.com/fuckmmw-afk/edge-eloquent/releases/download/v1.0.4/EdgeEloquent.ipa",
+          "localizedDescription": "Keeps the selected Gemma transcription engine active, surfaces the original LiteRT loading error instead of silently switching engines, and reports unavailable Apple on-device language support clearly.",
+          "minOSVersion": "17.0"
+        },
         {
           "version": "1.0.3",
           "date": "2026-09-09T10:13:35Z",
